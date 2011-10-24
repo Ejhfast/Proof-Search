@@ -1,4 +1,4 @@
--- Parse strings into Expr and Rule types
+-- Parse strings into Expr and Rule types with Parsec.
 
 module ProofParse where
 import Text.ParserCombinators.Parsec
