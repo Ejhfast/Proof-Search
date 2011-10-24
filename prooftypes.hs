@@ -4,12 +4,16 @@ module ProofTypes where
 import Prelude
 import List
 
+-- An Expr is a "fact" in the system
 data Expr a = Expr {_id :: String, body :: Stmt a, justification :: (Maybe [String], Maybe [String])}
   deriving (Eq)
+-- Stmts recursively describe an expression
 data Stmt a = Op a (Stmt a) (Stmt a) | Var a | Free a
   deriving (Eq)
+-- Rules rewrite a condition into a conclusion
 data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a}
   deriving (Show, Eq)
+-- A Ruleset is a named set of rules
 data Ruleset a =  Ruleset {name :: String, set :: [Rule a]}
   deriving (Show, Eq)
 
@@ -29,27 +33,30 @@ depth stmt =
     Free a -> 0
     Op op a b -> 1 + max (depth a) (depth b)
 
---Get assumptions assosiated with statement
+--Get assumptions assosiated with an expression
 deps :: Expr String -> [String]
 deps expr =
   case justification expr of
     (_, Just a) -> List.nub $ filter (\a -> a /= "_") (a++[_id expr])
     (_, Nothing) -> [_id expr]
 
+--Get rules used to prove an expression
 rule_deps :: Expr String -> [String]
 rule_deps expr =
   case justification expr of
     (Just a, _) -> a
     (Nothing,_) -> []
 
---Merge two lists of statement assumptions
+--Merge two lists of expression assumptions
 merge_deps :: [String] -> [String] -> [String]
 merge_deps one two = List.nub $ one ++ two 
 
+--Combine expressions pairwise
 pairwise_combine :: [Expr String] -> [Expr String]
 pairwise_combine facts =
   facts ++ [Expr "_" (Op "," (body x) (body y)) (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | x <- facts, y <- facts]
 
+--Helpers to prettify expressions
 show_stmt :: Stmt String -> String
 show_stmt stmt = 
   case stmt of
