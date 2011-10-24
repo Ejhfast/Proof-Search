@@ -1,0 +1,1 @@
+Forward proof search over rewrite rules. Tracks assumptions and rules applied, and searches over subexpression manipulation. Works, but is slow in some cases. Need to add backwards search.
