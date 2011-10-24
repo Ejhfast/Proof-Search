@@ -1,6 +1,6 @@
 Forward proof search over rewrite rules. Tracks assumptions and rules applied, and searches over subexpression manipulation. Works, but is slow in some cases. Need to add backwards search.
 
 proofsearch.hs  :  code for search
-proofparse.hs   :  parse input strings into internal representation
 prooftypes.hs   :  define types on Expressions and Rules for easy destructuring
+proofparse.hs   :  parse input strings into internal representation
 prooftest.hs    :  a few test cases
