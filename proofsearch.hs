@@ -18,11 +18,10 @@ sub_depth_level = 4
 consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] -> Bool
 consistent_subs lhs rhs =
   let full = lhs ++ rhs in
-  let bad_matches = 
-    List.map (\(e,f) -> length (List.filter (\(e1,f1) -> (e == e1 && f /= f1) || e /= e1 && f==f1) full)) full in
-    case (foldr (+) 0 bad_matches) of
-      0 -> True
-      _ -> False
+  let bad_matches = List.map (\(e,f) -> length (List.filter (\(e1,f1) -> (e == e1 && f /= f1) || e /= e1 && f==f1) full)) full in
+  case (foldr (+) 0 bad_matches) of
+    0 -> True
+    _ -> False
 
 --try to match a statement to a rule condition, return mapping of substitutions
 match :: Stmt String -> Stmt String -> [(Stmt String, Stmt String)]

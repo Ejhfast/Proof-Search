@@ -1,6 +1,4 @@
 module ProofTest where
--- Simple tests/examples
-
 import List  
 import ProofSearch
 import ProofParse
@@ -55,5 +53,15 @@ test6 =
   let s1 = make_expr "A1" "~(A&(B|C))=>C" in
   let to_prove = make_stmt "~A|(~B&~C)=>C" in
   check_proof 4 to_prove [r1,r2] [s1]
+
+test7 =
+  let r1 = make_ruleset "Free" ["A,B-->B,A"] in
+  let r2 = make_ruleset "TP" ["A,(A=>B)-->B"] in
+  let s1 = make_expr "A1" "A=>B" in
+  let s2 = make_expr "A2" "B=>C" in
+  let s3 = make_expr "A3" "C=>D" in
+  let s4 = make_expr "A4" "A" in
+  let to_prove = make_stmt "C" in
+  check_proof 4 to_prove [r1,r2] [s1,s2,s3,s4]
   
 run_all = List.map (\f -> (f)) [test1,test2,test3,test4,test5,test6]
