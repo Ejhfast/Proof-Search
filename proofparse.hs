@@ -44,6 +44,8 @@ table = [
     [prefix "~" neg]
   , [op "." (sop_gen ".") AssocLeft]
   , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
+  , [op "*" (sop_gen "*") AssocLeft]
+  , [op "+" (sop_gen "+") AssocLeft]
 	, [op "=>" (sop_gen "=>") AssocLeft]
 	, [op "-->" (sop_gen "-->") AssocLeft] ]
   where

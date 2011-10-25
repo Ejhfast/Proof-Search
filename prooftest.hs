@@ -3,6 +3,7 @@ import List
 import ProofSearch
 import ProofParse
 import ProofTypes
+import ProofFuncs
 
 test1 =
   let r1 = make_ruleset "Free" ["~(~A)-->A","A,A-->A","A,B-->B,A"] in
@@ -63,5 +64,17 @@ test7 =
   let s4 = make_expr "A4" "A" in
   let to_prove = make_stmt "C" in
   check_proof 4 to_prove [r1,r2] [s1,s2,s3,s4]
+
+test8 = 
+	let r1 = make_ruleset "Dist" ["A*X+B*X-->(A+B)*X"] in
+	let s1 = make_expr "A1" "2*X+3*X+(3*Y+4*Y)" in
+	let to_prove = make_stmt "5*X+7*Y" in
+	check_proof 4 to_prove [r1] [s1]
   
+test9 = 
+	let r1 = make_ruleset "Math" ["A*X+B*X-->(A+B)*X"] in
+	let s1 = make_expr "A1" "2*X+3*X+(5*4)" in
+	let to_prove = make_stmt "5*X+20" in
+	check_proof 4 to_prove [r1] [s1]
+
 run_all = List.map (\f -> (f)) [test1,test2,test3,test4,test5,test6]

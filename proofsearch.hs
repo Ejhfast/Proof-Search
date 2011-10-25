@@ -6,6 +6,7 @@ import List
 import qualified Data.Map as Map
 import ProofTypes
 import ProofParse
+import ProofFuncs
 
 -- Placeholder constant to signify failed matching
 false_mapping :: [(Stmt String, Stmt String)]
@@ -104,6 +105,12 @@ apply_rulesets expr rulesets facts =
 apply_rulesets_stmts :: [Expr String] -> [Ruleset String] -> [Expr String]
 apply_rulesets_stmts stmts rulesets =
   foldr (++) [] [apply_rulesets s rulesets stmts | s <- stmts]
+
+--Combine expressions pairwise
+pairwise_combine :: [Expr String] -> [Expr String]
+pairwise_combine facts =
+  facts ++ (f_exprs facts)
+	++ [Expr "_" (Op "," (body x) (body y)) (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | x <- facts, y <- facts]
 
 check_proof :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> Maybe String
 check_proof 0 _ _ stmts = Nothing

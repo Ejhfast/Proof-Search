@@ -51,11 +51,6 @@ rule_deps expr =
 merge_deps :: [String] -> [String] -> [String]
 merge_deps one two = List.nub $ one ++ two 
 
---Combine expressions pairwise
-pairwise_combine :: [Expr String] -> [Expr String]
-pairwise_combine facts =
-  facts ++ [Expr "_" (Op "," (body x) (body y)) (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | x <- facts, y <- facts]
-
 --Helpers to prettify expressions
 show_stmt :: Stmt String -> String
 show_stmt stmt = 
