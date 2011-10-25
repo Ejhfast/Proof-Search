@@ -40,11 +40,11 @@ test4 =
   check_proof 4 to_prove [r1,r2] [s1]
   
 test5 =
-  let fr = make_ruleset "Free" ["~(~A)-->A","A,A-->A","A,B-->B,A","A,B-->A&B","A=>B&C-->A=>B"] in
+  let fr = make_ruleset "Free" ["~(~A)-->A","A,A-->A","A,B-->B,A","A,B-->A&B","A=>B&C-->A=>B","A&B-->B&A"] in
   let tp = make_ruleset "TP" ["A,(A=>B)-->B"] in
   let dl = make_ruleset "DL" ["~(A&B)-->~A|~B","~(A|B)-->~A&~B"] in
   let s1 = make_expr "A1" "~K=>~(Q|M)" in
-  let to_prove = make_stmt "~K=>~Q" in
+  let to_prove = make_stmt "~K=>~M" in
   check_proof 4 to_prove [dl,fr,tp] [s1]
   
 test6 =
