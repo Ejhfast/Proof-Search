@@ -77,10 +77,16 @@ test9 =
 	let to_prove = make_stmt "5*X+20" in
 	check_proof 4 to_prove [r1] [s1]
 
-test10 = 
-  let r1 = make_ruleset "Ex" ["B-->$a.B.$a"] in
-  let s1 = make_expr "A1" "B" in
-  let to_prove = make_stmt "a.a.B.a.a" in
+test10 =
+  let r1 = make_ruleset "Math" ["A*X+B*X-->(A+B)*X"] in
+  let s1 = make_expr "A1" "(1*Y)*X+(2*Y)*X" in
+  let to_prove = make_stmt "(1*Y+2*Y)*X" in
   check_proof 4 to_prove [r1] [s1]
 
-run_all = List.map (\f -> (f)) [test1,test2,test3,test4,test5,test6]
+test11 = 
+  let r1 = make_ruleset "Ex" ["$B-->$a.$B.$a","$B-->$nil","$B-->$B.$B"] in
+  let s1 = make_expr "A1" "B" in
+  let to_prove = make_stmt "a.B.a.B.a.a" in
+  check_proof 4 to_prove [r1] [s1]
+
+run_all = List.map (\f -> (f)) [test1,test2,test3,test4,test5,test6,test7,test8,test9,test10,test11]

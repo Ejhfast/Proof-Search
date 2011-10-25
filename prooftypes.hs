@@ -56,7 +56,8 @@ show_stmt :: Stmt String -> String
 show_stmt stmt = 
   case stmt of
     (Op o a (Var "NOP")) -> o++(show_stmt a)
-    (Op o a b) -> (show_stmt a) ++ o ++ (show_stmt b)
+    (Op "." a b) -> (show_stmt a) ++ "." ++ (show_stmt b)
+    (Op o a b) -> "("++(show_stmt a) ++ o ++ (show_stmt b)++")"
     (Var a) -> a
     (Free a) -> a
     

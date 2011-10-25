@@ -13,7 +13,7 @@ false_mapping :: [(Stmt String, Stmt String)]
 false_mapping = [(Var "T",Free "FALSE"),(Var "T",Free "TRUE")]
 
 -- Search depth for subexpressions
-sub_depth_level = 4
+sub_depth_level = 5
 
 --test for consisent substitutions
 consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] -> Bool
@@ -30,11 +30,11 @@ match stmt rule =
   case rule of
     Free r1 -> [(stmt,rule)]
     Var "NOP" -> if stmt == (Var "NOP") then [((Var "NOP"),(Var "NOP"))] else false_mapping --hack for unary operations
-    Var r1 -> false_mapping -- should not be a Var in rules unless it is a NOP
+    Var r1 -> if stmt == (Var r1) then [] else false_mapping -- should not be a Var in rules unless it is a NOP
     (Op ro r1 r2) ->
       case stmt of
         Var s1 -> false_mapping -- Var does not map to statement
-        (Op so s1 s2) -> 
+        (Op so s1 s2) ->
           case (so == ro) of
             True -> 
               let (lhs, rhs) = ((match s1 r1), (match s2 r2)) in
@@ -92,7 +92,9 @@ apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
 
 apply_ruleset :: Expr String -> Ruleset String -> [Expr String] -> [Expr String]
 apply_ruleset expr ruleset facts =
-  foldr (++) [] [apply_rule sub_depth_level (body expr) r facts (name ruleset) (deps expr) (rule_deps expr) | r <- (set ruleset)]
+  let res = foldr (++) [] [apply_rule sub_depth_level (body expr) r facts (name ruleset) (deps expr) (rule_deps expr)
+                          | r <- (set ruleset)] in
+  res ++ (f_exprs res)
 
 apply_ruleset_stmts :: [Expr String] -> Ruleset String -> [Expr String]
 apply_ruleset_stmts stmts ruleset =
@@ -109,8 +111,8 @@ apply_rulesets_stmts stmts rulesets =
 --Combine expressions pairwise
 pairwise_combine :: [Expr String] -> [Expr String]
 pairwise_combine facts =
-  facts ++ (f_exprs facts)
-	++ [Expr "_" (Op "," (body x) (body y)) (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | x <- facts, y <- facts]
+  facts ++ [Expr "_" (Op "," (body x) (body y)) (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) 
+            | x <- facts, y <- facts]
 
 check_proof :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> Maybe String
 check_proof 0 _ _ stmts = Nothing
@@ -119,4 +121,4 @@ check_proof depth proof rulesets stmts =
   let res = List.find (\l -> (body l) == proof) update in
   case res of 
     Just el -> Just (show_expr el)
-    Nothing -> check_proof (depth - 1) proof rulesets (pairwise_combine (List.nub update))
+    Nothing -> check_proof (depth - 1) proof rulesets $ pairwise_combine $ List.nub update

@@ -2,10 +2,15 @@ module ProofFuncs where
 import List  
 import ProofTypes
 
-math :: (Int -> Int -> Int) -> String -> String -> String
-math f x y =
-	let (xn,yn) = (read x :: Int, read y :: Int) in
-	show $ f xn yn
+math :: (Int -> Int -> Int) -> String -> String -> String -> Stmt String
+math f sym x y =
+	let (xn,yn) = (reads x :: [(Int,String)], reads y :: [(Int,String)]) in
+	case xn of
+	  [(xint,_)] ->
+	   case yn of
+	     [(yint,_)] -> (Var (show $ f xint yint))
+	     _ -> (Op sym (Var x) (Var y))
+	  _ -> (Op sym (Var x) (Var y))
 	
 str_to_lst :: Stmt String -> [Stmt String]
 str_to_lst stmt =
@@ -13,31 +18,41 @@ str_to_lst stmt =
     (Op "." x y) -> (str_to_lst x) ++ (str_to_lst y)
     Var x -> [Var x]
     Free y -> [Free y]
+    _ -> []
     
 lst_to_stmt :: [Stmt String] -> Stmt String
-lst_to_stmt (x:[]) = x
-lst_to_stmt (x:xs) = (Op "." x (lst_to_stmt xs))
+lst_to_stmt x = 
+  case x of
+    [x1] -> x1
+    (x1:xs) -> (Op "." x1 (lst_to_stmt xs))
 
 string_order :: Stmt String -> Stmt String
-string_order stmt = lst_to_stmt $ str_to_lst stmt
+string_order stmt = 
+  case stmt of 
+    (Op "." _ _) -> lst_to_stmt $ str_to_lst stmt
+    x -> x
 
-collapse_funcs :: Stmt String -> Stmt String
+collapse_funcs :: Stmt String -> [Stmt String]
 collapse_funcs stmt =
 	case stmt of
-		(Var x) -> stmt
-		(Free x) -> stmt
+		(Var x) -> [stmt]
+		(Free x) -> [stmt]
 		(Op op (Var x) (Var y)) -> case op of
-			"+" -> (Var (math (+) x y))
-			"-" -> (Var (math (-) x y))
-			"*" -> (Var (math (*) x y ))
-			_ -> stmt
-		(Op op lhs rhs) -> (Op op (collapse_funcs lhs) (collapse_funcs rhs))
-		
-f_expr :: Expr String -> Expr String
+			"+" -> [(math (+) "+" x y)]
+			"-" -> [(math (-) "-" x y)]
+			"*" -> [(math (*) "*" x y)]
+			_ -> [stmt]
+		(Op "." x y) -> [string_order stmt]
+		(Op op lhs rhs) -> 
+		  [(Op op x y) | x <- (collapse_funcs lhs), y <- (collapse_funcs rhs)] ++
+		  [(Op op x rhs) | x <- (collapse_funcs lhs)] ++
+		  [(Op op lhs y) | y <- (collapse_funcs rhs)]
+		  
+f_expr :: Expr String -> [Expr String]
 f_expr expr =
 	let stmt = (body expr) in
-	Expr (_id expr) (collapse_funcs stmt) (justification expr)
+	[Expr (_id expr) x (justification expr) | x <- (collapse_funcs stmt)]
 
 f_exprs :: [Expr String] -> [Expr String]
 f_exprs exprs =
-	List.map f_expr exprs
+	foldr (++) [] [ f_expr x | x <- exprs ]
