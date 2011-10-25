@@ -42,7 +42,9 @@ expr ty = buildExpressionParser table (factor ty) <?> "expression"
 
 table = [
     [prefix "~" neg]
-  , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
+    , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
+    , [op "*" (sop_gen "*") AssocLeft]
+    , [op "+" (sop_gen "+") AssocLeft]
 	, [op "=>" (sop_gen "=>") AssocLeft]
 	, [op "-->" (sop_gen "-->") AssocLeft] ]
   where
