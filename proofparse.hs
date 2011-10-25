@@ -42,7 +42,7 @@ expr ty = buildExpressionParser table (factor ty) <?> "expression"
 
 table = [
     [prefix "~" neg]
-  , [op "." (sop_gen ".") AssocLeft]
+  , [op "." (sop_gen ".") AssocRight]
   , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
   , [op "*" (sop_gen "*") AssocLeft]
   , [op "+" (sop_gen "+") AssocLeft]
@@ -53,6 +53,7 @@ table = [
     prefix name fun = Prefix (do{ string name; return fun })
 
 factor ty = do { char '('; x <- expr ty; char ')'; return x }
+   <|> constant
 	 <|> number ty
 	 <?> "simple expression"
 
@@ -60,3 +61,5 @@ word = many1 digit <|> many1 letter
 
 number :: String -> Parser (Stmt String)
 number ty = do { ds <- word; return (terminal ty ds) } <?> "number"
+constant :: Parser (Stmt String)
+constant = do {char '$'; x <- word; return (terminal "stmt" x)}
