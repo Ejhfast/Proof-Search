@@ -81,6 +81,7 @@ apply_rule :: Int -> Stmt String -> Rule String -> [Expr String] -> String -> [S
 apply_rule 0 _ _ _ _ _ _ = []
 apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
     let top_level_match = match_with_bindings stmt rule facts ruleset_name expr_deps r_deps in
+    if (kind rule) == "strict" then top_level_match else
     case stmt of
       (Op o lhs rhs) -> --Search inside statements for rule matches
         top_level_match ++ 
@@ -113,12 +114,29 @@ pairwise_combine :: [Expr String] -> [Expr String]
 pairwise_combine facts =
   facts ++ [Expr "_" (Op "," (body x) (body y)) (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) 
             | x <- facts, y <- facts]
+            
+-- Generate all possabilities 
+search :: Int -> [Ruleset String] -> [Expr String] -> [Expr String]
+search 0 _ stmts = stmts
+search depth rulesets stmts = search (depth-1) rulesets $ List.nub $ stmts ++ (apply_rulesets_stmts stmts rulesets)
 
-check_proof :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> Maybe String
+backward_search :: Int -> [Expr String] -> [Ruleset String] -> [Expr String]
+backward_search 0 stmts _ = stmts
+backward_search depth stmts rulesets = -- reverse direction of rulesets
+  let rev_rules = map (\rs -> let r_set = map (\r -> (Rule (conclusion r) (condition r) (kind r))) (set rs) in (Ruleset (name rs) r_set)) rulesets in 
+  let newstmts = List.nub $ stmts ++ (apply_rulesets_stmts stmts rev_rules) in
+  backward_search (depth - 1) newstmts rulesets
+
+verify :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> Maybe String
+verify depth stmt rulesets assumps =
+  let equiv = backward_search 1 [(Expr "GOAL" stmt (Nothing,Nothing))] rulesets in -- find things equivalent to the goal
+  check_proof depth equiv rulesets assumps
+
+check_proof :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> Maybe String
 check_proof 0 _ _ stmts = Nothing
-check_proof depth proof rulesets stmts = 
+check_proof depth toprove rulesets stmts = 
   let update = stmts ++ apply_rulesets_stmts stmts rulesets in
-  let res = List.find (\l -> (body l) == proof) update in
+  let res = contains toprove update in
   case res of 
-    Just el -> Just (show_expr el)
-    Nothing -> check_proof (depth - 1) proof rulesets $ pairwise_combine $ List.nub update
+    ((x,y):rst) -> Just ("Forward: "++(show_expr y)++" "++"Backward: "++(show_expr x))
+    _ -> check_proof (depth - 1) toprove rulesets $ pairwise_combine $ List.nub update

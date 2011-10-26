@@ -17,8 +17,9 @@ make_rule :: String -> Rule String
 make_rule str =
   let stmt = parse (expr "rule") "" str in
   case stmt of
-    Right (Op "-->" a b) -> Rule a b
-    _ -> Rule (Free "A") (Free "A") -- fail...
+    Right (Op "-->" a b) -> Rule a b "equality"
+    Right (Op "*->" a b) -> Rule a b "strict"
+    _ -> Rule (Free "A") (Free "A") "strict"-- fail...
     
 make_ruleset :: String -> [String] -> Ruleset String
 make_ruleset name lst =
@@ -47,7 +48,7 @@ table = [
   , [op "*" (sop_gen "*") AssocLeft]
   , [op "+" (sop_gen "+") AssocLeft]
 	, [op "=>" (sop_gen "=>") AssocLeft]
-	, [op "-->" (sop_gen "-->") AssocLeft] ]
+	, [op "-->" (sop_gen "-->") AssocLeft, op "~>" (sop_gen "*->") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
     prefix name fun = Prefix (do{ string name; return fun })

@@ -11,7 +11,7 @@ data Expr a = Expr {_id :: String, body :: Stmt a, justification :: (Maybe [Stri
 data Stmt a = Op a (Stmt a) (Stmt a) | Var a | Free a
   deriving (Eq)
 -- Rules rewrite a condition into a conclusion
-data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a}
+data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: a}
   deriving (Show, Eq)
 -- A Ruleset is a named set of rules
 data Ruleset a =  Ruleset {name :: String, set :: [Rule a]}
@@ -50,6 +50,10 @@ rule_deps expr =
 --Merge two lists of expression assumptions
 merge_deps :: [String] -> [String] -> [String]
 merge_deps one two = List.nub $ one ++ two 
+
+contains :: [Expr String] -> [Expr String] -> [(Expr String,Expr String)]
+contains lst1 lst2 =
+  [ (x,y) | x <- lst1, y <- lst2, (body x) == (body y)]
 
 --Helpers to prettify expressions
 show_stmt :: Stmt String -> String
