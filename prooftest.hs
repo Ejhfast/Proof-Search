@@ -6,14 +6,15 @@ import ProofTypes
 import ProofFuncs
 
 test1 =
-  let r1 = make_ruleset "Free" ["~(~A)-->A","A,B-->B,A"] in
-  let r2 = make_ruleset "TP" ["A,(A=>B)-->B"] in
+  let r1 = make_ruleset "Neg" ["~(~A)-->A",""] in
+  let r2 = make_ruleset "TP" ["A,(A=>B)~>B"] in
   let s1 = make_expr "A1" "~(~Z)=>F" in
   let s2 = make_expr "A2" "F=>D" in
   let s3 = make_expr "A3" "Z" in
   let to_prove = make_stmt "D" in
-  verify 4 to_prove [r1,r2] [s1,s2,s3] 
+  verify 4 to_prove [r1,r2] [s1,s2,s3]
   
+    
 test2 =
   let r1 = make_ruleset "Free" ["A,B-->B,A"] in
   let r2 = make_ruleset "DL" ["~(A&B)-->~A|~B","~(A|B)-->~A&~B"] in
@@ -24,13 +25,13 @@ test2 =
   verify 4 to_prove [r1,r2,r3] [s1,s2]
   
 test3 = 
-  let r1 = make_ruleset "Free" ["A~>A&B","A&B~>A&B&C"] in
+  let r1 = make_ruleset "Free" ["A=>A"] in
   let s1 = make_expr "A1" "A" in
   let s2 = make_expr "A2" "B" in
   let s3 = make_expr "A3" "C" in
   let s4 = make_expr "A4" "D" in
   let s5 = make_expr "A5" "E" in
-  let to_prove = make_stmt "A&B&C" in
+  let to_prove = make_stmt "A,B,C" in
   verify 5 to_prove [r1] [s1,s2,s3,s4,s5]
   
 test4 =
@@ -95,6 +96,14 @@ test12 =
   let to_prove = make_stmt "(~B=>~A)|C" in
   verify 4 to_prove [r1] [s1]
   
+test13 =
+  let r1 = make_ruleset "Imp" ["$true-->(A->A)"] in
+  let s1 = make_expr "A1" "true" in
+  let to_prove = make_stmt "V=>V" in
+  verify 4 to_prove [r1] [s1]
+  --backward_search 1 (Expr "GOAl" to_prove (Nothing,Nothing)) [s1] [r1]
+  
+  
 -- bad tests, mostly testing "general rewrites vs. equality"
 
 bad1 = 
@@ -110,4 +119,12 @@ bad2 =
   let to_prove = make_stmt "A|B=>C" in
   verify 4 to_prove [r1] [s1,s2]
 
-run_all = List.map (\f -> (f)) [test1,test2,test3,test4,test5,test6,test7,test8,test9,test10,test11,test12]
+bad3 =
+  let r1 = make_ruleset "B" ["B-->C+C"] in
+  let s1 = make_expr "A1" "A" in
+  let s2 = make_expr "A2" "B" in
+  let to_prove = make_stmt "B+A" in
+  verify 4 to_prove [r1] [s1,s2]
+
+
+--run_all = List.map (\f -> (f)) [test1,test2,test3,test4,test5,test6,test7,test8,test9,test10,test11,test12]

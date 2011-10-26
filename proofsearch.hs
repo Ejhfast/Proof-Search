@@ -56,7 +56,21 @@ replace_terms rule lst =
         Nothing -> Free r1
     (Op ro r1 r2) ->
       (Op ro (replace_terms r1 lst) (replace_terms r2 lst))
-    
+
+all_maps :: Stmt String -> [Expr String] -> [[(Expr String,Stmt String)]]
+all_maps stmt facts =
+  let frees = get_free_vars stmt in -- [[[(fact1,Free "A")],(fact2,Free "A")...],...[(fact1, Free "N")...]]
+  let all_combs = List.map (\e -> [[(y,e)] | y <- facts]) frees in 
+  rec_combine all_combs
+  
+ef2 :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> [Expr String]
+ef2 conclusion facts ruleset_name expr_deps r_deps =
+  let replacements = all_maps conclusion facts in
+  if replacements == [] then [Expr "_" conclusion (Just ([ruleset_name]++r_deps),(Just expr_deps))] else
+  [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m)) 
+             (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (subs_deps m)))) | m <- replacements]
+  
+-- check for legit expansions... gather list of distinct frees, construct total possible consistent replacings...    
 -- Expand free variables into all possible statements
 expand_facts :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> [Expr String]
 expand_facts conclusion facts ruleset_name expr_deps r_deps =
@@ -74,7 +88,7 @@ match_with_bindings stmt rule facts ruleset_name expr_deps r_deps =
   let (cond,conc) = (condition rule, conclusion rule) in
   case match stmt cond of
     [(Var "T",Free "FALSE"),(Var "T",Free "TRUE")] -> [] -- false mapping
-    lst -> expand_facts (replace_terms conc lst) facts ruleset_name expr_deps r_deps
+    lst -> ef2 (replace_terms conc lst) facts ruleset_name expr_deps r_deps
 
 -- Apply a single rule to statement and get new list of known statements
 apply_rule :: Int -> Stmt String -> Rule String -> [Expr String] -> String -> [String] -> [String] -> [Expr String]
@@ -120,16 +134,16 @@ search :: Int -> [Ruleset String] -> [Expr String] -> [Expr String]
 search 0 _ stmts = stmts
 search depth rulesets stmts = search (depth-1) rulesets $ List.nub $ stmts ++ (apply_rulesets_stmts stmts rulesets)
 
-backward_search :: Int -> [Expr String] -> [Ruleset String] -> [Expr String]
-backward_search 0 stmts _ = stmts
-backward_search depth stmts rulesets = -- reverse direction of rulesets
+backward_search :: Int -> Expr String -> [Expr String] -> [Ruleset String] -> [Expr String]
+backward_search 0 start stmts _ = [start] ++ stmts
+backward_search depth start stmts rulesets = -- reverse direction of rulesets
   let rev_rules = map (\rs -> let r_set = map (\r -> (Rule (conclusion r) (condition r) (kind r))) (set rs) in (Ruleset (name rs) r_set)) rulesets in 
-  let newstmts = List.nub $ stmts ++ (apply_rulesets_stmts stmts rev_rules) in
-  backward_search (depth - 1) newstmts rulesets
+  let newstmts = List.nub $ (apply_rulesets start rev_rules stmts) in
+  backward_search (depth - 1) start newstmts rulesets
 
 verify :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> Maybe String
 verify depth stmt rulesets assumps =
-  let equiv = backward_search 1 [(Expr "GOAL" stmt (Nothing,Nothing))] rulesets in -- find things equivalent to the goal
+  let equiv = backward_search 1 (Expr "GOAL" stmt (Nothing,Nothing)) assumps rulesets in -- find things equivalent to the goal
   check_proof depth equiv rulesets assumps
 
 check_proof :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> Maybe String

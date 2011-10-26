@@ -49,11 +49,26 @@ rule_deps expr =
 
 --Merge two lists of expression assumptions
 merge_deps :: [String] -> [String] -> [String]
-merge_deps one two = List.nub $ one ++ two 
+merge_deps one two = List.nub $ one ++ two
+
+subs_deps :: [(Expr String,Stmt String)] -> [String]
+subs_deps lst = foldr (++) [] [(deps expr) | (expr,free) <- lst]
 
 contains :: [Expr String] -> [Expr String] -> [(Expr String,Expr String)]
 contains lst1 lst2 =
   [ (x,y) | x <- lst1, y <- lst2, (body x) == (body y)]
+  
+get_free_vars :: Stmt String -> [Stmt String]
+get_free_vars stmt =
+  case stmt of 
+    (Free a) -> [Free a]
+    (Var a) -> []
+    (Op _ x y) -> List.nub $ (get_free_vars x) ++ (get_free_vars y)
+    
+rec_combine :: [[[a]]] -> [[a]]
+rec_combine (l1:l2:rest) = rec_combine ([x++y | x <- l1, y <- l2]:rest)
+rec_combine (l1:[]) = l1
+rec_combine _ = []
 
 --Helpers to prettify expressions
 show_stmt :: Stmt String -> String
