@@ -115,6 +115,4 @@ forward_search depth start toprove rulesets stmts =
 verify :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> IO (Maybe String)
 verify depth stmt rulesets assumps =
   let equiv = backward_search 1 (Expr "_" stmt (Nothing,Nothing)) assumps rulesets in -- find things equivalent to the goal
-  do 
-    let ans = forward_search depth stmt equiv rulesets assumps
-    return ans
+  do {return $ forward_search depth stmt equiv rulesets assumps }
