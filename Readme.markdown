@@ -1,6 +1,6 @@
-# Framework for constructing rewrite rules. 
+### Framework for constructing rewrite rules. 
 
-## (Mostly) Supported So Far:
+#### (Mostly) Supported So Far:
 
 + Proof Search: forward and backward
 + Verification: Check if statement is provable (given resources/time)
@@ -8,12 +8,12 @@
 + Functions: Support for basic mathematical operations
 + Strings: For constructing CFGs
 
-## Working on:
+#### Working on:
 
 + Verification contingent upon specified rules/assumptions
 + Web service API
 
-## Directory Structure
+#### Directory Structure
 
 + proofsearch.hs  :  code for search
 + prooftypes.hs   :  define types on Expressions and Rules for easy destructuring
