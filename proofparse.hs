@@ -7,6 +7,7 @@ import ProofTypes
 import List
 
 neg a = Op "~" a (Var "NOP")
+uncond_rule a = Op "#" (Var "NOP") a
 sop_gen op a b = Op op a b
 terminal ty a = 
   case ty of
@@ -19,6 +20,7 @@ make_rule str =
   case stmt of
     Right (Op "-->" a b) -> Rule a b "equality"
     Right (Op "*->" a b) -> Rule a b "strict"
+    Right (Op "#" a b) -> Rule a b "uncond"
     _ -> Rule (Free "A") (Free "A") "strict"-- fail...
     
 make_ruleset :: String -> [String] -> Ruleset String
@@ -42,7 +44,7 @@ expr :: String -> Parser (Stmt String)
 expr ty = buildExpressionParser table (factor ty) <?> "expression"
 
 table = [
-    [prefix "~" neg]
+    [prefix "~" neg, prefix "#" uncond_rule]
   , [op "." (sop_gen ".") AssocRight]
   , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
   , [op "*" (sop_gen "*") AssocLeft]
@@ -59,6 +61,7 @@ factor ty = do { char '('; x <- expr ty; char ')'; return x }
 	 <?> "simple expression"
 
 word = many1 digit <|> many1 letter
+
 
 number :: String -> Parser (Stmt String)
 number ty = do { ds <- word; return (terminal ty ds) } <?> "number"

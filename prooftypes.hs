@@ -17,6 +17,10 @@ data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: a}
 data Ruleset a =  Ruleset {name :: String, set :: [Rule a]}
   deriving (Show, Eq)
 
+-- Placeholder constant to signify failed matching
+false_mapping :: [(Stmt String, Stmt String)]
+false_mapping = [(Var "T",Free "FALSE"),(Var "T",Free "TRUE")]
+
 -- Get the name of a statement leaf
 val :: Stmt String -> String
 val stmt =
