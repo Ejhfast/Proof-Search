@@ -78,6 +78,9 @@ constant = do {char '$'; x <- word; return (terminal "stmt" x)}
 
 -- For web service
 
+data ProofStmt = ProofStmt {nm :: String, stmt :: Stmt String, r_deps :: [String], a_deps :: [String]}
+  deriving (Show,Eq)
+
 r_expr = do {x <- (expr "rule"); ws; char ';'; ws; return x}
 p_expr = do {x <- (expr "stmt"); ws; char ';'; ws; return x}
 
@@ -86,14 +89,13 @@ rulesets = many ruleset
 assumption = do {w <- digitstring; char ':'; ws; x <- (expr "stmt"); char ';'; ws; return (Expr w x (Nothing,Nothing))}
 assumptions = many assumption
 
-proof_1l = do {line <- digitstring; char ':'; ws; x <- (expr "stmt"); ws; return (line,x)}
-proof_2l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; return (line,x,rules)}
-proof_3l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; assumps <- specifier; ws; return (line,x,rules,assumps)}
+proof_1l = do {line <- digitstring; char ':'; ws; x <- (expr "stmt"); return (ProofStmt line x [] [])}
+proof_2l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; return (ProofStmt line x rules [])}
+proof_3l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; assumps <- specifier; return (ProofStmt line x rules assumps)}
 
-proof1 = many proof_1l
-proof2 = many proof_2l
-proof3 = many proof_3l
-
+proof = try (sepBy proof_3l eol)
+  <|> try (sepBy proof_2l eol)
+  <|> (sepBy proof_1l eol)
 specifier = do {char '['; x <- req; char ']'; return x}
 req = sepBy digitstring (char ',') 
 digitstring = many (digit <|> letter)
