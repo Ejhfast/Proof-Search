@@ -11,8 +11,9 @@ data Expr a = Expr {_id :: String, body :: Stmt a, justification :: (Maybe [Stri
 data Stmt a = Op a (Stmt a) (Stmt a) | Var a | Free a
   deriving (Eq)
 -- Rules rewrite a condition into a conclusion
-data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: a}
+data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: Kind}
   deriving (Show, Eq)
+data Kind = Equality | Strict | Unconditional deriving (Show,Eq)
 -- A Ruleset is a named set of rules
 data Ruleset a =  Ruleset {name :: String, set :: [Rule a]}
   deriving (Show, Eq)

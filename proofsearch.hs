@@ -65,9 +65,9 @@ apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
   let try_match = (match stmt cond) in
   let top_level_match = if try_match == false_mapping then [] else expand (replace_terms conc try_match) facts ruleset_name expr_deps r_deps in
   case (kind rule) of
-    "strict" -> top_level_match -- just rewrites allowed
-    "uncond" -> expand conc facts ruleset_name expr_deps r_deps -- nothing for the rule to match
-    "equality" -> -- with equality, recursive
+    Strict -> top_level_match -- just rewrites allowed
+    Unconditional -> expand conc facts ruleset_name expr_deps r_deps -- nothing for the rule to match
+    Equality -> -- with equality, recursive
       case stmt of
         (Op o lhs rhs) -> --Search inside statements for rule matches
           top_level_match ++ 

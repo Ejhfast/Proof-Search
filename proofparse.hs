@@ -14,14 +14,22 @@ terminal ty a =
     "rule" -> Free a
     _ -> Var a
 
+make_rule_stmt :: Stmt String -> Rule String
+make_rule_stmt stmt =
+  case stmt of
+    (Op "-->" a b) -> Rule a b Equality
+    (Op "*->" a b) -> Rule a b Strict
+    (Op "#" a b) -> Rule a b Unconditional
+    _ -> Rule (Free "A") (Free "A") Strict -- fail...
+    
 make_rule :: String -> Rule String
 make_rule str =
   let stmt = parse (expr "rule") "" str in
   case stmt of
-    Right (Op "-->" a b) -> Rule a b "equality"
-    Right (Op "*->" a b) -> Rule a b "strict"
-    Right (Op "#" a b) -> Rule a b "uncond"
-    _ -> Rule (Free "A") (Free "A") "strict"-- fail...
+    Right (Op "-->" a b) -> Rule a b Equality
+    Right (Op "*->" a b) -> Rule a b Strict
+    Right (Op "#" a b) -> Rule a b Unconditional
+    _ -> Rule (Free "A") (Free "A") Strict -- fail...
     
 make_ruleset :: String -> [String] -> Ruleset String
 make_ruleset name lst =
@@ -67,3 +75,32 @@ number :: String -> Parser (Stmt String)
 number ty = do { ds <- word; return (terminal ty ds) } <?> "number"
 constant :: Parser (Stmt String)
 constant = do {char '$'; x <- word; return (terminal "stmt" x)}
+
+-- For web service
+
+r_expr = do {x <- (expr "rule"); ws; char ';'; ws; return x}
+p_expr = do {x <- (expr "stmt"); ws; char ';'; ws; return x}
+
+ruleset = do {string "ruleset"; ws; x <- word; ws; char '{'; ws; y <- many r_expr; char '}'; ws; return (Ruleset x [make_rule_stmt r | r <- y])}
+rulesets = many ruleset
+assumption = do {w <- digitstring; char ':'; ws; x <- (expr "stmt"); char ';'; ws; return (Expr w x (Nothing,Nothing))}
+assumptions = many assumption
+
+proof_1l = do {line <- digitstring; char ':'; ws; x <- (expr "stmt"); ws; return (line,x)}
+proof_2l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; return (line,x,rules)}
+proof_3l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; assumps <- specifier; ws; return (line,x,rules,assumps)}
+
+proof1 = many proof_1l
+proof2 = many proof_2l
+proof3 = many proof_3l
+
+specifier = do {char '['; x <- req; char ']'; return x}
+req = sepBy digitstring (char ',') 
+digitstring = many (digit <|> letter)
+ws = many ((string " ") <|> eol)
+eol =   try (string "\n\r")
+    <|> try (string "\r\n")
+    <|> string "\n"
+    <|> string "\r"
+    <?> "end of line"
+
