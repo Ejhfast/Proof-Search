@@ -7,6 +7,8 @@
 + Rule Types: Strict rewrites, equalities, and unconditional statements
 + Functions: Support for basic mathematical operations
 + Strings: For constructing CFGs
++ Parsing: Now handled on the backend with Parsec
++ Deparsing: Built into Stmt types
 
 ## Working on:
 
