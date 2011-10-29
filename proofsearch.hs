@@ -102,17 +102,3 @@ backward_search depth start stmts rulesets = -- reverse direction of rulesets
   let rev_rules = map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r)) $ set rs) (descrip rs)) rulesets in 
   let newstmts = List.nub $ apply_rulesets start rev_rules stmts in
   backward_search (depth - 1) start newstmts rulesets
-
-forward_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> Maybe String
-forward_search 0 _ _ _ stmts = Nothing
-forward_search depth start toprove rulesets stmts = 
-  let update = stmts ++ apply_rulesets_stmts stmts rulesets in
-  let res = [Expr "_" start (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | (x,y) <- (contains toprove update)] in
-  case res of 
-    (x:rst) -> Just (show_expr x)
-    _ -> forward_search (depth - 1) start toprove rulesets $ List.nub update
-    
-verify :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> IO (Maybe String)
-verify depth stmt rulesets assumps =
-  let equiv = backward_search 1 (Expr "_" stmt (Nothing,Nothing)) assumps rulesets in -- find things equivalent to the goal
-  do {return $ forward_search depth stmt equiv rulesets assumps }

@@ -9,14 +9,16 @@
 + Strings: For constructing CFGs
 + Parsing: Now handled on the backend with Parsec
 + Deparsing: Built into Stmt types
++ Web interface for all of above
 
 #### Working on:
 
-+ Verification contingent upon specified rules/assumptions
-+ Web service API
++ Integration of web service with existing frontend
++ Better error messages
 
 #### Directory Structure
 
++ proofserver.hs  :  web-server defining an API for backend interface
 + proofsearch.hs  :  code for search
 + prooftypes.hs   :  define types on Expressions and Rules for easy destructuring
 + prooffuncs.hs   :  apply and collapse functions on Expression objects

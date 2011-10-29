@@ -7,6 +7,20 @@ import ProofFuncs
 import System.Timeout
 import Control.Monad
 
+forward_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> Maybe String
+forward_search 0 _ _ _ stmts = Nothing
+forward_search depth start toprove rulesets stmts = 
+  let update = stmts ++ apply_rulesets_stmts stmts rulesets in
+  let res = [Expr "_" start (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | (x,y) <- (contains toprove update)] in
+  case res of 
+    (x:rst) -> Just (show_expr x)
+    _ -> forward_search (depth - 1) start toprove rulesets $ List.nub update
+    
+verify :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> IO (Maybe String)
+verify depth stmt rulesets assumps =
+  let equiv = backward_search 1 (Expr "_" stmt (Nothing,Nothing)) assumps rulesets in -- find things equivalent to the goal
+  do {return $ forward_search depth stmt equiv rulesets assumps }
+
 run_test to_prove rulesets stmts = do
   res <- verify 4 to_prove rulesets stmts
   case res of
@@ -58,7 +72,7 @@ test4 =
 test5 =
   let fr = make_ruleset "Free" ["#(A&B)","~(~A)-->A","(Q=>A&C)-->(Q=>A)","A&B-->B&A"] ""  in
   let tp = make_ruleset "TP" ["A&(A=>B)-->B"] ""  in
-  let dl = make_ruleset "DL" ["~(A&B)-->~A|~B","~(A|B)-->~A&~B"] in
+  let dl = make_ruleset "DL" ["~(A&B)-->~A|~B","~(A|B)-->~A&~B"] "" in
   let s1 = make_expr "A1" "~K=>~(Q|M)" in
   let to_prove = make_stmt "~K=>~Q" in
   time_test to_prove [dl,fr,tp] [s1]
