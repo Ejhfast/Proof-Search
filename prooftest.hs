@@ -137,6 +137,14 @@ test14 =
   let to_prove = make_stmt "Q&R" in
   time_test to_prove [r1] [s1,s2]
   
+test15 = 
+  let r1 = make_ruleset "T" ["A,(A&B=>C)-->B=>C","#(A,B)"] "" in
+  let s1 = make_expr "A1" "~R&~B=>~K" in
+  let s2 = make_expr "A2" "~R" in
+  let to_prove = make_stmt "~B=>~K" in
+  time_test to_prove [r1] [s1,s2]
+
+  
   
 -- bad tests, mostly testing "general rewrites vs. equality"
 

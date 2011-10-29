@@ -84,7 +84,7 @@ data ProofStmt = ProofStmt {nm :: String, stmt :: Stmt String, r_deps :: [String
 r_expr = do {x <- (expr "rule"); ws; char ';'; ws; return x}
 p_expr = do {x <- (expr "stmt"); ws; char ';'; ws; return x}
 
-ruleset = do {string "ruleset"; ws; x <- word; ws; char '{'; ws; d <- str; ws; y <- many r_expr; char '}'; ws; return (Ruleset x [make_rule_stmt r | r <- y] d)}
+ruleset = do {ws; x <- digitstring; ws; char '{'; ws; d <- str; ws; y <- many r_expr; char '}'; ws; return (Ruleset x [make_rule_stmt r | r <- y] d)}
 rulesets = many ruleset
 assumption = do {w <- digitstring; char ':'; ws; x <- (expr "stmt"); char ';'; ws; return (Expr w x (Nothing,Nothing))}
 assumptions = many assumption
@@ -97,7 +97,8 @@ proof = try (sepBy proof_3l eol)
   <|> try (sepBy proof_2l eol)
   <|> (sepBy proof_1l eol)
 
-desc = digit <|> letter <|> char '-' <|> char '>' <|> char '~' <|> char ' ' <|> char '*' <|> char '+' <|> char '=' <|> char '(' <|> char ')'
+desc = digit <|> letter <|> char '-' <|> char '>' <|> char '<' <|> char '~' <|> char ' ' 
+  <|> char '*' <|> char '+' <|> char '=' <|> char '(' <|> char ')' <|> char '.' <|> char '&' <|> char '|' <|> char ','
 str = do {char '"'; x <- many desc; char '"'; return x }
 
 specifier = do {char '['; x <- req; char ']'; return x}

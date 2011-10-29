@@ -6,7 +6,7 @@ import Text.ParserCombinators.Parsec.Expr
 import List
 import System.Timeout as S
 import ProofParse
-import ProofTypes
+import ProofTypes as PT
 import ProofSearch
 import System.IO.Unsafe
 
@@ -15,7 +15,7 @@ main = simpleHTTP nullConf $ app
 
 app :: ServerPart Response
 app = do 
-  decodeBody (defaultBodyPolicy "/tmp/" (10*10^6) 1000 1000) 
+  decodeBody (defaultBodyPolicy "/tmp/" (10*10^6) 10000 10000) 
   msum [   dir "check_proof" $ check_proof,
            dir "check_assignment" $ check_assign ]
            
@@ -26,33 +26,37 @@ check_proof = do
   as <- look "assumptions"
   reqs <- look "reqs"
   p <- look "proof"
+  goal <- look "goal"
   let rs_parsed = parse rulesets "" rs
   let as_parsed = parse assumptions "" as
-  case (rs_parsed, as_parsed) of 
-    (Right r, Right a) ->
+  let g_parsed = parse (expr "stmt") "" goal
+  case (rs_parsed, as_parsed, g_parsed) of 
+    (Right r, Right a, Right g) ->
       let pres = parse proof "" p in
       case pres of
         Right pstmts -> do
-          res <- do_proof r a pstmts ""
+          res <- do_proof r a pstmts g ""
           ok $ toResponse res
         Left e -> ok $ toResponse (show e)
-    _ -> ok $ toResponse "bad parse in assumptions/rulesets" --problem parsing
+    _ -> ok $ toResponse "problem parsing"
     
 check_assign :: ServerPart Response
 check_assign = do
   methodM POST
   rs <- look "rulesets"
   as <- look "assumptions"
+  g <- look "goal"
   let rs_parsed = parse rulesets "" rs
   let as_parsed = parse assumptions "" as
-  case (rs_parsed, as_parsed) of 
-    (Right r, Right a) ->
+  let g_parsed = parse (expr "stmt") "" g
+  case (rs_parsed, as_parsed, g_parsed) of 
+    (Right r, Right a, Right go) ->
       ok $ toResponse $ foldr (++) [] [pretty_ruleset x | x <- r]
-    _ -> ok $ toResponse "Fail: bad parse in assumptions/rulesets" --problem parsing
+    (p1,p2,p3) -> ok $ toResponse $ "Fail: bad parse in assumptions/rulesets\n"++(show p1)++"\n"++(show p2)++"\n"++(show p3)
 
-proved :: String -> ProofStmt -> String
-proved msg pstmt = 
-  msg++"Proved "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
+proved :: String -> ProofStmt -> [String] -> [String] -> String
+proved msg pstmt rules assums = 
+  msg++"Proved "++(nm pstmt)++" with "++(show rules)++" and assumptions "++(show assums)++".\n"
 failed :: String -> ProofStmt -> String
 failed msg pstmt =
   msg++"Failed to prove "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
@@ -61,15 +65,16 @@ pretty_ruleset :: Ruleset String -> String
 pretty_ruleset ruleset =
   (show $ name ruleset)++": "++(show $ descrip ruleset)++"\n" 
 
-do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> String -> ServerPartT IO String
-do_proof _ _ [] msg = do { return msg }
-do_proof rs as (p:ps) msg = do
+do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> Stmt String -> String -> ServerPartT IO String
+do_proof _ _ [] _ msg = do { return msg }
+do_proof rs as (p:ps) goal msg = do
   try_prove <- checkproof 2 (stmt p) rs as
   case try_prove of
-    Just x ->
-      case verify_rules_assumptions x (r_deps p) (a_deps p) of
+    Just (x:xs) ->
+      case verify_rules_assumptions (x:xs) (r_deps p) (a_deps p) of
         True -> let newassum = Expr (nm p) (stmt p) (Nothing,Nothing) in
-          do_proof rs (newassum:as) ps (proved msg p)
+          if (PT.body x) == goal then return $ (proved msg p (rule_deps x) (deps x)) ++ "Proved goal."
+            else do_proof rs (newassum:as) ps goal (proved msg p (rule_deps x) (deps x))
         False -> return $ failed msg p
     _ -> return $ failed msg p
 
@@ -97,7 +102,7 @@ f_search depth start toprove rulesets stmts =
     
 timed_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> (Maybe [Expr String])
 timed_search depth start toprove rulesets stmts = 
-  let search = unsafePerformIO $ S.timeout 500000 $ f_search depth start toprove rulesets stmts in
+  let search = unsafePerformIO $ S.timeout 1000000 $ f_search depth start toprove rulesets stmts in
   case search of
     Just x -> x
     Nothing -> Nothing
