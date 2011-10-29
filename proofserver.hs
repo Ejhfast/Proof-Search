@@ -16,10 +16,11 @@ main = simpleHTTP nullConf $ app
 app :: ServerPart Response
 app = do 
   decodeBody (defaultBodyPolicy "/tmp/" (10*10^6) 1000 1000) 
-  msum [   dir "checkproof" $ process ]
+  msum [   dir "check_proof" $ check_proof,
+           dir "check_assignment" $ check_assign ]
            
-process :: ServerPart Response
-process = do 
+check_proof :: ServerPart Response
+check_proof = do 
   methodM POST
   rs <- look "rulesets"
   as <- look "assumptions"
@@ -36,6 +37,29 @@ process = do
           ok $ toResponse res
         Left e -> ok $ toResponse (show e)
     _ -> ok $ toResponse "bad parse in assumptions/rulesets" --problem parsing
+    
+check_assign :: ServerPart Response
+check_assign = do
+  methodM POST
+  rs <- look "rulesets"
+  as <- look "assumptions"
+  let rs_parsed = parse rulesets "" rs
+  let as_parsed = parse assumptions "" as
+  case (rs_parsed, as_parsed) of 
+    (Right r, Right a) ->
+      ok $ toResponse $ foldr (++) [] [pretty_ruleset x | x <- r]
+    _ -> ok $ toResponse "Fail: bad parse in assumptions/rulesets" --problem parsing
+
+proved :: String -> ProofStmt -> String
+proved msg pstmt = 
+  msg++"Proved "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
+failed :: String -> ProofStmt -> String
+failed msg pstmt =
+  msg++"Failed to prove "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
+  
+pretty_ruleset :: Ruleset String -> String
+pretty_ruleset ruleset =
+  (show $ name ruleset)++": "++(show $ descrip ruleset)++"\n" 
 
 do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> String -> ServerPartT IO String
 do_proof _ _ [] msg = do { return msg }
@@ -44,9 +68,10 @@ do_proof rs as (p:ps) msg = do
   case try_prove of
     Just x ->
       case verify_rules_assumptions x (r_deps p) (a_deps p) of
-        True -> do_proof rs as ps (msg ++ "Proved "++(nm p)++"\n")
-        False -> return $ msg ++ "Attempt to prove statement "++(nm p)++" with "++(show (r_deps p))++"... failed.\n"
-    _ -> return $ msg ++ "Attempt to prove statement "++(nm p)++"... failed.\n"
+        True -> let newassum = Expr (nm p) (stmt p) (Nothing,Nothing) in
+          do_proof rs (newassum:as) ps (proved msg p)
+        False -> return $ failed msg p
+    _ -> return $ failed msg p
 
 verify_rules_assumptions :: [Expr String] -> [String] -> [String] -> Bool
 verify_rules_assumptions exprs [] [] = True
@@ -72,7 +97,7 @@ f_search depth start toprove rulesets stmts =
     
 timed_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> (Maybe [Expr String])
 timed_search depth start toprove rulesets stmts = 
-  let search = unsafePerformIO $ S.timeout 100000 $ f_search depth start toprove rulesets stmts in
+  let search = unsafePerformIO $ S.timeout 500000 $ f_search depth start toprove rulesets stmts in
   case search of
     Just x -> x
     Nothing -> Nothing

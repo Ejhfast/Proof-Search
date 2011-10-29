@@ -15,7 +15,7 @@ data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: Kind}
   deriving (Show, Eq)
 data Kind = Equality | Strict | Unconditional deriving (Show,Eq)
 -- A Ruleset is a named set of rules
-data Ruleset a =  Ruleset {name :: String, set :: [Rule a]}
+data Ruleset a =  Ruleset {name :: String, set :: [Rule a], descrip :: String}
   deriving (Show, Eq)
 
 -- Placeholder constant to signify failed matching
