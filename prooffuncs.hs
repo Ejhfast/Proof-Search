@@ -43,10 +43,11 @@ collapse_funcs stmt =
 			"*" -> [(math (*) "*" x y)]
 			_ -> [stmt]
 		(Op "." x y) -> [string_order stmt]
-		(Op op lhs rhs) -> 
-		  [(Op op x y) | x <- (collapse_funcs lhs), y <- (collapse_funcs rhs)] ++
-		  [(Op op x rhs) | x <- (collapse_funcs lhs)] ++
-		  [(Op op lhs y) | y <- (collapse_funcs rhs)]
+		(Op op lhs rhs) -> List.nub $ 
+		                [(Op op x y) | x <- (collapse_funcs lhs), y <- (collapse_funcs rhs)] ++
+		                [(Op op x rhs) | x <- (collapse_funcs lhs)] ++
+		                [(Op op lhs y) | y <- (collapse_funcs rhs)]
+		  
 		  
 f_expr :: Expr String -> [Expr String]
 f_expr expr =

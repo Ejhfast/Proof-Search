@@ -15,7 +15,7 @@ main = simpleHTTP nullConf $ app
 
 app :: ServerPart Response
 app = do 
-  decodeBody (defaultBodyPolicy "/tmp/" (10*10^6) 10000 10000) 
+  decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000) 
   msum [   dir "check_proof" $ check_proof,
            dir "check_assignment" $ check_assign ]
            
@@ -68,7 +68,7 @@ pretty_ruleset ruleset =
 do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> Stmt String -> String -> ServerPartT IO String
 do_proof _ _ [] _ msg = do { return msg }
 do_proof rs as (p:ps) goal msg = do
-  try_prove <- checkproof 2 (stmt p) rs as
+  try_prove <- checkproof 3 (stmt p) rs as
   case try_prove of
     Just (x:xs) ->
       case verify_rules_assumptions (x:xs) (r_deps p) (a_deps p) of
@@ -98,7 +98,7 @@ f_search depth start toprove rulesets stmts =
   let res = [Expr "_" start (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | (x,y) <- (contains toprove update)] in
   case res of 
     (x:rst) -> do {return $ Just res}
-    _ -> f_search (depth - 1) start toprove rulesets $ List.nub update
+    _ -> f_search (depth - 1) start toprove rulesets update
     
 timed_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> (Maybe [Expr String])
 timed_search depth start toprove rulesets stmts = 

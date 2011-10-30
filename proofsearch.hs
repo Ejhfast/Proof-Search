@@ -70,19 +70,17 @@ apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
     Equality -> -- with equality, recursive
       case stmt of
         (Op o lhs rhs) -> --Search inside statements for rule matches
-          top_level_match ++ 
+          top_level_match ++
           [Expr "_" (Op o (body x) rhs) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
             | x <- (apply_rule (depth - 1) lhs rule facts ruleset_name expr_deps r_deps)] ++ 
           [Expr "_" (Op o lhs (body x)) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
             | x <- (apply_rule (depth - 1) rhs rule facts ruleset_name expr_deps r_deps)]
         otherwise -> top_level_match
 
--- Apply a ruleset to an expression, return all valid new expressions
 apply_ruleset :: Expr String -> Ruleset String -> [Expr String] -> [Expr String]
 apply_ruleset expr ruleset facts =
-  let res = foldr (++) [] [apply_rule sub_depth_level (body expr) r facts (name ruleset) (deps expr) (rule_deps expr)
-                          | r <- (set ruleset)] in
-  res ++ (f_exprs res)
+  (foldr (++) [] [f_exprs $ apply_rule sub_depth_level (body expr) r facts (name ruleset) (deps expr) (rule_deps expr)
+                | r <- (set ruleset)])
 
 apply_ruleset_stmts :: [Expr String] -> Ruleset String -> [Expr String]
 apply_ruleset_stmts stmts ruleset =

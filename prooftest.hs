@@ -28,7 +28,7 @@ run_test to_prove rulesets stmts = do
     Nothing -> return "failed"
   
 time_test to_prove rulesets stmts = do
-  res <- timeout 100000 (run_test to_prove rulesets stmts) -- .1 second to return answer
+  res <- timeout 1000000 (run_test to_prove rulesets stmts) -- .1 second to return answer
   case res of
     (Just x) -> return x
     Nothing -> return "failed"
@@ -144,7 +144,15 @@ test15 =
   let to_prove = make_stmt "~B=>~K" in
   time_test to_prove [r1] [s1,s2]
 
-  
+test16 = 
+  let r1 = make_ruleset "T" ["(P=>Q),(Q=>R)~>(P=>R)","#(A,B)"] "" in
+  let s1 = make_expr "A1" "~A=>(D&F&G)" in
+  let s2 = make_expr "A2" "(D&F&G)=>~B" in
+  let to_prove = make_stmt "~A=>~B" in
+  time_test to_prove [r1] [s1,s2] 
+  --let ss = 
+  --apply_rulesets_stmts [s1,s2] [r1] --in
+  --apply_rulesets_stmts ss [r1]
   
 -- bad tests, mostly testing "general rewrites vs. equality"
 
