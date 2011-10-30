@@ -68,7 +68,9 @@ pretty_ruleset ruleset =
 do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> Stmt String -> String -> ServerPartT IO String
 do_proof _ _ [] _ msg = do { return msg }
 do_proof rs as (p:ps) goal msg = do
-  try_prove <- checkproof 3 (stmt p) rs as
+  let use_rules = if (r_deps p) == [] then rs else filter (\r -> ((name r) `elem` (r_deps p)) || (name r) == "Free" ) rs
+  let use_assumps = if (a_deps p) == [] then as else filter (\a -> (_id a) `elem` (a_deps p)) as
+  try_prove <- checkproof 3 (stmt p) use_rules use_assumps
   case try_prove of
     Just (x:xs) ->
       case verify_rules_assumptions (x:xs) (r_deps p) (a_deps p) of
