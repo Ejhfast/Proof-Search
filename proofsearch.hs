@@ -10,10 +10,10 @@ sub_depth_level = 5 -- Search depth for subexpressions
 
 --test for consisent substitutions
 consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] -> Bool
-consistent_subs lhs rhs =
-  let full = lhs ++ rhs in
-  let bad_matches = List.map (\(e,f) -> length (List.filter (\(e1,f1) -> (e == e1 && f /= f1) || e /= e1 && f==f1) full)) full in
-  if (foldr (+) 0 bad_matches) == 0 then True else False
+consistent_subs lhs rhs = if (sum bad_matches) == 0 then True else False 
+  where 
+    full = lhs ++ rhs
+    bad_matches = map (\(e,f) -> length (filter (\(e1,f1) -> (e == e1 && f /= f1) || e /= e1 && f==f1) full)) full
 
 --try to match a statement to a rule condition, return mapping of substitutions
 match :: Stmt String -> Stmt String -> [(Stmt String, Stmt String)]
@@ -54,7 +54,7 @@ expand conclusion facts ruleset_name expr_deps r_deps =
   let all_combs = List.map (\e -> [[(y,e)] | y <- facts]) frees in
   let replacements = rec_combine all_combs in -- Generate all possible mappings
   if replacements == [] then [Expr "_" conclusion (Just ([ruleset_name]++r_deps),(Just expr_deps))] else
-  [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m)) 
+    [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m)) 
              (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (subs_deps m)))) | m <- replacements]
 
 -- Apply a single rule to statement and get new list of known statements
@@ -76,23 +76,21 @@ apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
           [Expr "_" (Op o lhs (body x)) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
             | x <- (apply_rule (depth - 1) rhs rule facts ruleset_name expr_deps r_deps)]
         otherwise -> top_level_match
+        
+-- generate rule expansions/rewrites...
 
 apply_ruleset :: Expr String -> Ruleset String -> [Expr String] -> [Expr String]
 apply_ruleset expr ruleset facts =
-  (foldr (++) [] [f_exprs $ apply_rule sub_depth_level (body expr) r facts (name ruleset) (deps expr) (rule_deps expr)
-                | r <- (set ruleset)])
+  concat [f_exprs $ apply_rule sub_depth_level (body expr) r facts (name ruleset) (deps expr) (rule_deps expr) | r <- (set ruleset)]
 
 apply_ruleset_stmts :: [Expr String] -> Ruleset String -> [Expr String]
-apply_ruleset_stmts stmts ruleset =
-  foldr (++) [] [apply_ruleset s ruleset stmts | s <- stmts]
+apply_ruleset_stmts stmts ruleset = concat [apply_ruleset s ruleset stmts | s <- stmts]
 
 apply_rulesets :: Expr String -> [Ruleset String] -> [Expr String] -> [Expr String]
-apply_rulesets expr rulesets facts =
-  foldr (++) [] [apply_ruleset expr rs facts | rs <- rulesets]
+apply_rulesets expr rulesets facts = concat [apply_ruleset expr rs facts | rs <- rulesets]
 
 apply_rulesets_stmts :: [Expr String] -> [Ruleset String] -> [Expr String]
-apply_rulesets_stmts stmts rulesets =
-  foldr (++) [] [apply_rulesets s rulesets stmts | s <- stmts]
+apply_rulesets_stmts stmts rulesets = concat [apply_rulesets s rulesets stmts | s <- stmts]
 
 backward_search :: Int -> Expr String -> [Expr String] -> [Ruleset String] -> [Expr String]
 backward_search 0 start stmts _ = [start] ++ stmts

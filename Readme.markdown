@@ -13,8 +13,9 @@
 
 #### Working on:
 
-+ Integration of web service with existing frontend
 + Better error messages
++ More efficient search
++ Clean up parsing system
 
 #### Directory Structure
 
