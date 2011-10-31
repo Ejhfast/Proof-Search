@@ -27,13 +27,15 @@
 + proofparse.hs   :  parse input strings into internal representation
 + prooftest.hs    :  a few test cases
 
-## A few examples
+## Quick Description
+
+Given a set of rules and a set of expressions, we apply a brute-force combination of forward and backward search to verify statements entered by a user. Search works by producing and generating new expressions, applying rule-based transformations upon what the system already knows.  
 
 ### Rulesets
 
 #### Definition
 
-Rulesets are groups of rules that share a common name and description. Usually, the various rules within a ruleset represent different ways of producing the "same" kind of transformation. A ruleset is defined as:
+Rulesets are groups of rules that share a common name and description. Usually, the rules within a ruleset represent different ways of producing the "same" sort of transformation. A ruleset is defined as:
 
 	RulesetName{
 	  "Description of ruleset"
