@@ -87,3 +87,99 @@ these terms, we need additional syntax. For instance:
 
 Through B<-(C=>D) this rule says that B must be of the general form C=>D, and so we 
 are allowed to state "anything comma any implication".
+
+### Expressions
+
+Expressions are the basic facts of the system. They can be entered in a 'common' infix notation. E.g.
+
++ A+B
++ 4*X+5*Y
++ A&B|C
+
+Although the underlying proof checking system is completely general, the expression parser is not. At the moment it supports basic mathematical notation (e.g. +,-,x), predicate logic (e.g. &,|), and for CFGs: string concatenation ('.'). 
+
+Although rules are written in the form of expressions, the system parses expressions differently. In the rule A&B~>B, A and B are "free" variables which can represent any fact in the system. But for the expression B&C, B and C have single, set values.
+
+#### Example Ruleset(s)
+
+Here are some rulesets put together for the purpose of basic logical proofs.
+
+	Free{
+	  ""
+	  #(A,B);
+	}
+	PP{
+	  "P => Q & P -> Q"
+	  P,(P=>Q)~>Q;
+	}
+	TT{
+	  "P => Q & ~Q -> ~P"
+	  (P=>Q)~>(~Q=>~P);
+	  ~Q,(P=>Q)~>~P;
+	}
+	TP{
+	  "(P | Q) & ~P -> Q"
+	  (P|Q),~P~>Q;
+	  (P|Q),~Q~>P;
+	  (P|Q)~>(~P=>Q);
+	  (P|Q)~>(~Q=>P);
+	  ~P~>(P|Q)=>Q;
+	}
+	DN{
+	 "P <-> ~P"
+	  P~>(P=>~(~P));
+	  ~(~P)~>(~(~P)=>P);
+	  P-->~(~P);
+	  ~(~P)-->P;
+	}
+	S{
+	  "P & Q -> P, P & Q -> Q"
+	  (P&Q)~>P;
+	  (P&Q)~>Q;
+	  (R=>P&Q)~>R=>P;
+	  (R=>P&Q)~>R=>Q;
+	  (A,(B&A=>C))~>B=>C;
+	  (A,(A&B=>C))~>B=>C;
+	  A~>(B=>B&A);
+	}
+	A{
+	  "P -> (Q => P & Q)"
+	  P~>(Q=>(P&Q));
+	  P~>(Q=>(Q&P));
+	}
+	HS{
+	  "(P => Q) & (Q => R) -> P => R"
+	  ((P=>Q),(Q=>R))~>(P=>R);
+	}
+	LA{
+	"P -> P | Q"
+	  P~>(P=>(P|Q));
+	  P-->(P|Q);
+	}
+	DM{
+	  "~(P & Q) <-> ~P | ~Q, ~(P | Q) <-> ~P & ~Q"
+	  (P&Q)-->~(~P|~Q);
+	  ~(P&Q)-->~P|~Q;
+	  (P|Q)-->~(~P&~Q);
+	  ~(P|Q)-->~P&~Q;
+	  ~(~P|~Q)-->P&Q;
+	  ~P|~Q-->~(P&Q);
+	}
+	REFL{ 
+	  "A => A"
+	  A~>(A=>A);
+	}
+	DP{
+	  "P | P -> P"
+	  (P|P)-->P;
+	}
+	DS{
+	  "(P => R) & (Q => S) -> (P | Q) => (R | S)"
+	  (P=>R),(Q=>S)~>((P|Q)=>(R|S));
+	  (P=>R),(Q=>S),(P|Q)~>(R|S);
+	}
+	CL{
+	  "P & Q -> Q & P, P | Q -> Q | P"
+	  (P&Q)-->(Q&P);
+	  (P|Q)-->(Q|P);
+	}
