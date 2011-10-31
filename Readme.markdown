@@ -53,10 +53,10 @@ Despite the fact that these rules search through sub-expressions, in practice th
 
 Generative rules state a conclusion only, and dictate how expressions may be legally combined. They are expressed of the form #(expr), where expr presents an allowed combination. For instance, suppose that we know P, and that we also know Q. We may want the system to be prove "P and Q" or rather propositionally: P,Q. The rule for this is:
 
-> #(A,B)
+> \#(A,B)
 
 Here A and B represent arbitrary expressions, and will therefore match anything. This rule says that if we know anything, and we also know anything else, then we may state "the first anything comma the anything else." If we want to constrain one or more of these terms, we need additional syntax. For instance:
 
-> #(A,B<-(C=>D))
+> \#(A,B<-(C=>D))
 
 Through B<-(C=>D) this rule says that B must be of the general form C=>D, and so we are allowed to state "anything comma any implication".
