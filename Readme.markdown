@@ -35,13 +35,13 @@
 
 Rulesets are groups of rules that share a common name and description. Usually, the various rules within a ruleset represent different ways of producing the "same" kind of transformation. A ruleset is defined as:
 
-> RulesetName{
->  "Description of ruleset"
-    Rule1;
-    Rule2;
-    ...
-    RuleN;	
-> }
+> RulesetName{\n
+>  \t"Description of ruleset"
+    \tRule1;
+    \tRule2;
+    \t...
+    \tRuleN;	
+> \n}
 
 Where each Rule(i) is either a rewrite, equality, or generative rule.
 
