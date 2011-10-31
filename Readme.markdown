@@ -57,7 +57,8 @@ within sub-expressions. For instance:
 However, they remain general in the sense that more complex terms will still find 
 mappings. E.g:
 
-	The statement ~A&~(B|R) will map ~A to A and ~(B|R) to B and produce ~A
+	Applying the above rule, the statement ~A&~(B|R) will map ~A to A and ~(B|R) to B 
+	and produce ~A
 
 #### Equalities
 
