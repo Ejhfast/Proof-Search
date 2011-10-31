@@ -71,7 +71,7 @@ do not seem of far higher cost than strict rewrites.
 
 #### Generative Rules
 
-Generative rules state a conclusion only, and dictate how expressions may be legally
+Generative rules state a conclusion only, and so dictate how expressions may be legally
 combined. They are expressed of the form #(expr), where expr presents an allowed 
 combination. For instance, suppose that we know P, and that we also know Q. We may want 
 the system to be prove "P and Q" or rather propositionally: P,Q. The rule for this is:
