@@ -1,8 +1,8 @@
-## Proof Checking Framework
+# Proof Checking Framework
 
-### General Status 
+## General Status 
 
-#### (Mostly) Supported So Far:
+### (Mostly) Supported So Far:
 
 + Proof Search: forward and backward
 + Verification: Check if statement is provable (given resources/time)
@@ -13,12 +13,12 @@
 + Deparsing: Built into Stmt types
 + Web interface for all of above
 
-#### Working on:
+### Working on:
 
 + Better error messages
 + More efficient search
 
-#### Directory Structure
+### Directory Structure
 
 + proofserver.hs  :  web-server and API for backend interface
 + proofsearch.hs  :  code for search
@@ -27,11 +27,11 @@
 + proofparse.hs   :  parse input strings into internal representation
 + prooftest.hs    :  a few test cases
 
-### A few examples
+## A few examples
 
-#### Rulesets
+### Rulesets
 
-##### Rewrite Rules
+#### Rewrite Rules
 
 Strict rewrite rules are (currently) represented with '~>' and will not be applied within sub-expressions. For instance: 
 
@@ -41,7 +41,7 @@ However, they remain general in the sense that more complex terms will still fin
 
 > The statement ~A&~(B|R) will map ~A to A and ~(B|R) to B and produce ~A
 
-##### Equalities
+#### Equalities
 
 Equality rules are (currently) represented with '-->' and will be applied to sub-expressions. Replacements will therefore be made without reference to context. E.g.
 
@@ -49,7 +49,7 @@ Equality rules are (currently) represented with '-->' and will be applied to sub
 
 Despite the fact that these rules search through sub-expressions, in practice they do not seem of far higher cost than strict rewrites.
 
-##### Generative Rules
+#### Generative Rules
 
 Generative rules state a conclusion only, and dictate how expressions may be legally combined. They are expressed of the form #(expr), where expr presents an allowed combination. For instance, suppose that we know P, and that we also know Q. We may want the system to be prove "P and Q" or rather propositionally: P,Q. The rule for this is:
 
