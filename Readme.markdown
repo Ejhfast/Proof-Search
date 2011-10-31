@@ -61,13 +61,13 @@ mappings. E.g:
 
 #### Equalities
 
-Equality rules are (currently) represented with --> and will be applied to sub-
-expressions. Replacements will therefore be made without reference to context. E.g.
+Equality rules are (currently) represented with --> and will be applied to sub-expressions. 
+Replacements will be made without reference to context. E.g.
 
 	The rule ~(A|B)-->~A&~B can be applied to B=>~(C|F) to produce B=>~C&~F
 
 Despite the fact that these rules search through sub-expressions, in practice they
-do not seem of far higher cost than strict rewrites.
+do not seem of much higher cost than strict rewrites.
 
 #### Generative Rules
 
