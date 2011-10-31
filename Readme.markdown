@@ -33,7 +33,7 @@
 
 #### Rewrite Rules
 
-Strict rewrite rules are (currently) represented with '~>' and will not be applied within sub-expressions. For instance: 
+Strict rewrite rules are (currently) represented with ~> and will not be applied within sub-expressions. For instance: 
 
 > The rule A&B~>A can be applied to the expression "A&B" but not "A&B=>C"
 
@@ -43,7 +43,7 @@ However, they remain general in the sense that more complex terms will still fin
 
 #### Equalities
 
-Equality rules are (currently) represented with '-->' and will be applied to sub-expressions. Replacements will therefore be made without reference to context. E.g.
+Equality rules are (currently) represented with --> and will be applied to sub-expressions. Replacements will therefore be made without reference to context. E.g.
 
 > The rule ~(A|B)-->~A&~B can be applied to B=>~(C|F) to produce B=>~C&~F
 
