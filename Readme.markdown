@@ -35,13 +35,13 @@
 
 Rulesets are groups of rules that share a common name and description. Usually, the various rules within a ruleset represent different ways of producing the "same" kind of transformation. A ruleset is defined as:
 
-> RulesetName{\n
->  \t"Description of ruleset"
-    \tRule1;
-    \tRule2;
-    \t...
-    \tRuleN;	
-> \n}
+	RulesetName{
+	  "Description of ruleset"
+	  Rule1;
+	  Rule2;
+	  ...
+	  RuleN;	
+	}
 
 Where each Rule(i) is either a rewrite, equality, or generative rule.
 
@@ -50,19 +50,19 @@ Where each Rule(i) is either a rewrite, equality, or generative rule.
 Strict rewrite rules are (currently) represented with ~> and will not be applied 
 within sub-expressions. For instance: 
 
-> The rule A&B~>A can be applied to the expression "A&B" but not "A&B=>C"
+	The rule A&B~>A can be applied to the expression "A&B" but not "A&B=>C"
 
 However, they remain general in the sense that more complex terms will still find 
 mappings. E.g:
 
-> The statement ~A&~(B|R) will map ~A to A and ~(B|R) to B and produce ~A
+	The statement ~A&~(B|R) will map ~A to A and ~(B|R) to B and produce ~A
 
 #### Equalities
 
 Equality rules are (currently) represented with --> and will be applied to sub-
 expressions. Replacements will therefore be made without reference to context. E.g.
 
-> The rule ~(A|B)-->~A&~B can be applied to B=>~(C|F) to produce B=>~C&~F
+	The rule ~(A|B)-->~A&~B can be applied to B=>~(C|F) to produce B=>~C&~F
 
 Despite the fact that these rules search through sub-expressions, in practice they
 do not seem of far higher cost than strict rewrites.
@@ -74,14 +74,14 @@ combined. They are expressed of the form #(expr), where expr presents an allowed
 combination. For instance, suppose that we know P, and that we also know Q. We may want 
 the system to be prove "P and Q" or rather propositionally: P,Q. The rule for this is:
 
-> \#(A,B)
+	#(A,B)
 
 Here A and B represent arbitrary expressions, and will therefore match anything. This
 rule says that if we know anything, and we also know anything else, then we may state
 "the first anything comma the anything else." If we want to constrain one or more of 
 these terms, we need additional syntax. For instance:
 
-> \#(A,B<-(C=>D))
+	#(A,B<-(C=>D))
 
 Through B<-(C=>D) this rule says that B must be of the general form C=>D, and so we 
 are allowed to state "anything comma any implication".
