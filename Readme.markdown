@@ -96,7 +96,7 @@ Expressions are the basic facts of the system. They can be entered in a 'common'
 + 4*X+5*Y
 + A&B|C
 
-Although the underlying proof checking system is completely general, the expression parser is not. At the moment it supports basic mathematical notation (+,-,\*), predicate logic (&,|), and (for CFGs) string concatenation (.). Where appropriate in expressions, certain functions are allowed to collapse (eventually, these may be user-specified). An example of this is (3\*X+3\*X), which will collapse to 6\*X.
+Although the underlying proof checking system is completely general, the expression parser is not. At the moment it supports basic mathematical notation (+,-,\*), predicate logic (&,|), and (for CFGs) string concatenation (. <--dot). Where appropriate in expressions, certain functions are allowed to collapse (eventually, these may be user-specified). An example of this is (3\*X+3\*X), which will collapse to 6\*X.
 
 Although rules are written in the form of expressions, the system parses expressions differently. In the rule A&B~>B, A and B are "free" variables which can represent any fact in the system. But for the expression B&C, B and C have single, set values.
 
