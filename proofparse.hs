@@ -18,7 +18,7 @@ make_rule_stmt stmt =
     (Op "-->" a b) -> Rule a b Equality
     (Op "*->" a b) -> Rule a b Strict
     (Op "#" a b) -> Rule a b Unconditional
-    _ -> Rule (Free "A") (Free "A") Strict -- fail...
+    _ -> Rule (Var "NOP") (Var "NOP") Strict -- fail...
     
 make_rule :: String -> Rule String
 make_rule str =

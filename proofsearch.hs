@@ -56,6 +56,20 @@ expand conclusion facts ruleset_name expr_deps r_deps =
   if replacements == [] then [Expr "_" conclusion (Just ([ruleset_name]++r_deps),(Just expr_deps))] else
     [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m)) 
              (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (subs_deps m)))) | m <- replacements]
+             
+--find stmts matching structure
+find_matches :: Stmt String -> [Expr String] -> [Expr String]
+find_matches search facts =
+ filter (\f -> (match (body f) search) /= false_mapping) facts
+
+--expand uncond
+exp_uncond :: Stmt String -> [Expr String] -> [String] -> [String] -> [Expr String]
+exp_uncond stmt facts r_deps expr_deps = case stmt of
+ (Op "<-" (Free a) b) -> find_matches b facts
+ (Op o x y) -> [Expr "_" (Op o (body nx) (body ny)) (Just r_deps, Just (merge_deps expr_deps ((deps nx) ++ (deps ny)))) 
+   | nx <- exp_uncond x facts r_deps expr_deps, ny <- exp_uncond y facts r_deps expr_deps]
+ Var x -> [Expr "_" (Var x) (Nothing,Nothing)]
+ Free x -> facts
 
 -- Apply a single rule to statement and get new list of known statements
 apply_rule :: Int -> Stmt String -> Rule String -> [Expr String] -> String -> [String] -> [String] -> [Expr String]
@@ -66,7 +80,8 @@ apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
   let top_level_match = if try_match == false_mapping then [] else expand (replace_terms conc try_match) facts ruleset_name expr_deps r_deps in
   case (kind rule) of
     Strict -> top_level_match -- just rewrites allowed
-    Unconditional -> expand conc facts ruleset_name expr_deps r_deps -- nothing for the rule to match
+    Unconditional -> exp_uncond conc facts (ruleset_name:r_deps) expr_deps
+      --expand conc facts ruleset_name expr_deps r_deps -- nothing for the rule to match
     Equality -> -- with equality, recursive
       case stmt of
         (Op o lhs rhs) -> --Search inside statements for rule matches
