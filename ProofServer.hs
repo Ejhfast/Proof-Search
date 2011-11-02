@@ -8,6 +8,7 @@ import System.Timeout as S
 import ProofParse
 import ProofTypes as PT
 import ProofSearch
+import Text.JSON
 import System.IO.Unsafe
 
 main :: IO ()
@@ -35,7 +36,7 @@ check_proof = do
       let pres = parse proof "" p in
       case pres of
         Right pstmts -> do
-          res <- do_proof r a pstmts g ""
+          res <- do_proof r a pstmts g []
           ok $ toResponse res
         Left e -> ok $ toResponse (show e)
     _ -> ok $ toResponse "problem parsing"
@@ -54,19 +55,22 @@ check_assign = do
       ok $ toResponse $ foldr (++) [] [pretty_ruleset x | x <- r]
     (p1,p2,p3) -> ok $ toResponse $ "Fail: bad parse in assumptions/rulesets\n"++(show p1)++"\n"++(show p2)++"\n"++(show p3)
 
-proved :: String -> ProofStmt -> [String] -> [String] -> String
-proved msg pstmt rules assums = 
-  msg++"Proved "++(nm pstmt)++" with "++(show rules)++" and assumptions "++(show assums)++".\n"
-failed :: String -> ProofStmt -> String
-failed msg pstmt =
-  msg++"Failed to prove "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
+proved :: [(String,(JSObject String))] -> ProofStmt -> [String] -> [String] -> [(String,(JSObject String))]
+proved msg pstmt rules assums = ((nm pstmt),attrs):msg
+  where attrs = toJSObject [("status","proved")]
+  --msg++"Proved "++(nm pstmt)++" with "++(show rules)++" and assumptions "++(show assums)++".\n"
+failed :: [(String,(JSObject String))] -> ProofStmt -> [(String,(JSObject String))]
+failed msg pstmt = ((nm pstmt),attrs):msg
+  where attrs = toJSObject [("status","failed")]
+  
+  --msg++"Failed to prove "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
   
 pretty_ruleset :: Ruleset String -> String
 pretty_ruleset ruleset =
   (show $ name ruleset)++": "++(show $ descrip ruleset)++"\n" 
 
-do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> Stmt String -> String -> ServerPartT IO String
-do_proof _ _ [] _ msg = do { return msg }
+do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> Stmt String -> [(String,(JSObject String))] -> ServerPartT IO String
+do_proof _ _ [] _ msg = do { return $ encode $ toJSObject msg }
 do_proof rs as (p:ps) goal msg = do
   let use_rules = if (r_deps p) == [] then rs else filter (\r -> ((name r) `elem` (r_deps p)) || (name r) == "Free" ) rs
   let use_assumps = if (a_deps p) == [] then as else filter (\a -> (_id a) `elem` (a_deps p)) as
@@ -75,10 +79,10 @@ do_proof rs as (p:ps) goal msg = do
     Just (x:xs) ->
       case verify_rules_assumptions (x:xs) (r_deps p) (a_deps p) of
         True -> let newassum = Expr (nm p) (stmt p) (Nothing,Nothing) in
-          if (PT.body x) == goal then return $ (proved msg p (rule_deps x) (deps x)) ++ "Proved goal."
+          if (PT.body x) == goal then return $ encode $ toJSObject $ (proved msg p (rule_deps x) (deps x))
             else do_proof rs (newassum:as) ps goal (proved msg p (rule_deps x) (deps x))
-        False -> return $ failed msg p
-    _ -> return $ failed msg p
+        False -> return $ encode $ toJSObject $ failed msg p
+    _ -> return $ encode $ toJSObject $ failed msg p
 
 verify_rules_assumptions :: [Expr String] -> [String] -> [String] -> Bool
 verify_rules_assumptions exprs [] [] = True
