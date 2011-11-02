@@ -96,7 +96,7 @@ proof = try (sepBy proof_3l eol)
   <|> (sepBy proof_1l eol)
 
 desc = digit <|> letter <|> char '-' <|> char '>' <|> char '<' <|> char '~' <|> char ' ' 
-  <|> char '*' <|> char '+' <|> char '=' <|> char '(' <|> char ')' <|> char '.' <|> char '&' <|> char '|' <|> char ','
+  <|> char '*' <|> char '+' <|> char '=' <|> char '(' <|> char ')' <|> char '.' <|> char '&' <|> char '|' <|> char ',' <|> char '⟘'
 str = do {char '"'; x <- many desc; char '"'; return x }
 
 specifier = do {char '['; x <- req; char ']'; return x}

@@ -57,11 +57,13 @@ check_assign = do
 
 proved :: [(String,(JSObject String))] -> ProofStmt -> [String] -> [String] -> [(String,(JSObject String))]
 proved msg pstmt rules assums = ((nm pstmt),attrs):msg
-  where attrs = toJSObject [("status","proved")]
+  where attrs = toJSObject [("status","proved"),("rules",(show rules)),("assumptions",(show assums))]
   --msg++"Proved "++(nm pstmt)++" with "++(show rules)++" and assumptions "++(show assums)++".\n"
-failed :: [(String,(JSObject String))] -> ProofStmt -> [(String,(JSObject String))]
-failed msg pstmt = ((nm pstmt),attrs):msg
+failed :: [(String,(JSObject String))] -> ProofStmt -> [Expr String] -> [(String,(JSObject String))]
+failed msg pstmt [] = ((nm pstmt),attrs):msg
   where attrs = toJSObject [("status","failed")]
+failed msg pstmt (h:hs) = ((nm pstmt),attrs):msg
+  where attrs = toJSObject [("status","failed"),("hint_rules",(show $ rule_deps h)),("hint_assumps",(show $ deps h))]
   
   --msg++"Failed to prove "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
   
@@ -81,8 +83,12 @@ do_proof rs as (p:ps) goal msg = do
         True -> let newassum = Expr (nm p) (stmt p) (Nothing,Nothing) in
           if (PT.body x) == goal then return $ encode $ toJSObject $ (proved msg p (rule_deps x) (deps x))
             else do_proof rs (newassum:as) ps goal (proved msg p (rule_deps x) (deps x))
-        False -> return $ encode $ toJSObject $ failed msg p
-    _ -> return $ encode $ toJSObject $ failed msg p
+        False -> return $ encode $ toJSObject $ failed msg p []
+    _ -> do
+      try_prove <- checkproof 5 (stmt p) rs as
+      case try_prove of
+        Just x -> return $ encode $ toJSObject $ failed msg p x
+        otherwise -> return $ encode $ toJSObject $ failed msg p []
 
 verify_rules_assumptions :: [Expr String] -> [String] -> [String] -> Bool
 verify_rules_assumptions exprs [] [] = True

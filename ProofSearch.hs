@@ -35,6 +35,14 @@ match stmt rule =
             False -> false_mapping -- not the same operator
         Free s1 -> false_mapping --should not a Free in statements
 
+-- match rules with multiple conditions
+multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> [Expr String]
+multi_match cond conc stmt facts expr_deps r_deps = case cond of
+  (Op "," a b) -> case (match stmt a) of
+    [(Var "T",Free "FALSE"),(Var "T",Free "TRUE")] -> []
+    l_subs -> let r_sub_lst = filter (\(f,d)-> ((f /= false_mapping) && (consistent_subs l_subs f))) [(match (body x) b,(deps x)) | x <- facts] in
+      [Expr "_" (replace_terms conc (l_subs ++ r_subs)) (Just r_deps, Just (merge_deps expr_deps d)) | (r_subs, d) <- r_sub_lst ]
+
 --Replace free variables in a statement as specified in provided mapping
 replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> Stmt String
 replace_terms rule lst =
@@ -56,20 +64,6 @@ expand conclusion facts ruleset_name expr_deps r_deps =
   if replacements == [] then [Expr "_" conclusion (Just ([ruleset_name]++r_deps),(Just expr_deps))] else
     [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m)) 
              (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (subs_deps m)))) | m <- replacements]
-             
---find stmts matching structure
-find_matches :: Stmt String -> [Expr String] -> [Expr String]
-find_matches search facts =
- filter (\f -> (match (body f) search) /= false_mapping) facts
-
---expand uncond
-exp_uncond :: Stmt String -> [Expr String] -> [String] -> [String] -> [Expr String]
-exp_uncond stmt facts r_deps expr_deps = case stmt of
- (Op "<-" (Free a) b) -> find_matches b facts
- (Op o x y) -> [Expr "_" (Op o (body nx) (body ny)) (Just r_deps, Just (merge_deps expr_deps ((deps nx) ++ (deps ny)))) 
-   | nx <- exp_uncond x facts r_deps expr_deps, ny <- exp_uncond y facts r_deps expr_deps]
- Var x -> [Expr "_" (Var x) (Nothing,Nothing)]
- Free x -> facts
 
 -- Apply a single rule to statement and get new list of known statements
 apply_rule :: Int -> Stmt String -> Rule String -> [Expr String] -> String -> [String] -> [String] -> [Expr String]
@@ -78,19 +72,20 @@ apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
   let (cond,conc) = (condition rule, conclusion rule) in
   let try_match = (match stmt cond) in
   let top_level_match = if try_match == false_mapping then [] else expand (replace_terms conc try_match) facts ruleset_name expr_deps r_deps in
-  case (kind rule) of
-    Strict -> top_level_match -- just rewrites allowed
-    Unconditional -> exp_uncond conc facts (ruleset_name:r_deps) expr_deps
-      --expand conc facts ruleset_name expr_deps r_deps -- nothing for the rule to match
-    Equality -> -- with equality, recursive
-      case stmt of
-        (Op o lhs rhs) -> --Search inside statements for rule matches
-          top_level_match ++
-          [Expr "_" (Op o (body x) rhs) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
-            | x <- (apply_rule (depth - 1) lhs rule facts ruleset_name expr_deps r_deps)] ++ 
-          [Expr "_" (Op o lhs (body x)) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
-            | x <- (apply_rule (depth - 1) rhs rule facts ruleset_name expr_deps r_deps)]
-        otherwise -> top_level_match
+  case cond of
+    (Op "," _ _) -> multi_match cond conc stmt facts expr_deps (ruleset_name:r_deps)
+    otherwise ->
+      case (kind rule) of
+        Equality -> -- with equality, recursive
+          case stmt of
+            (Op o lhs rhs) -> --Search inside statements for rule matches
+              top_level_match ++
+              [Expr "_" (Op o (body x) rhs) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
+                | x <- (apply_rule (depth - 1) lhs rule facts ruleset_name expr_deps r_deps)] ++ 
+              [Expr "_" (Op o lhs (body x)) (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (deps x))) 
+                | x <- (apply_rule (depth - 1) rhs rule facts ruleset_name expr_deps r_deps)]
+            otherwise -> top_level_match
+        otherwise -> top_level_match -- just rewrites allowed       
         
 -- generate rule expansions/rewrites...
 
