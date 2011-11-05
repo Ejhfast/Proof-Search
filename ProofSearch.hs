@@ -13,7 +13,7 @@ consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] 
 consistent_subs lhs rhs = if (sum bad_matches) == 0 then True else False 
   where 
     full = lhs ++ rhs
-    bad_matches = map (\(e,f) -> length (filter (\(e1,f1) -> (e == e1 && f /= f1) || e /= e1 && f==f1) full)) full
+    bad_matches = map (\(e,f) -> length (filter (\(e1,f1) -> e /= e1 && f==f1) full)) full -- (e == e1 && f /= f1) || 
 
 --try to match a statement to a rule condition, return mapping of substitutions
 match :: Stmt String -> Stmt String -> [(Stmt String, Stmt String)]
@@ -39,7 +39,7 @@ match stmt rule =
 multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> [Expr String]
 multi_match cond conc stmt facts expr_deps r_deps = case cond of
   (Op "," a b) -> case (match stmt a) of
-    [(Var "T",Free "FALSE"),(Var "T",Free "TRUE")] -> []
+    [(Var "FALSE",Free "T"),(Var "TRUE",Free "T")] -> []
     l_subs -> let r_sub_lst = filter (\(f,d)-> ((f /= false_mapping) && (consistent_subs l_subs f))) [(match (body x) b,(deps x)) | x <- facts] in
       [Expr "_" (replace_terms conc (l_subs ++ r_subs)) (Just r_deps, Just (merge_deps expr_deps d)) | (r_subs, d) <- r_sub_lst ]
 

@@ -2,31 +2,38 @@ module ProofParse where
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import ProofTypes
+import Data.String.Utils
 import List
 
+-- unary generators
 neg a = Op "~" a (Var "NOP")
-uncond_rule a = Op "#" (Var "NOP") a
 sop_gen op a b = Op op a b
+-- terminals
 terminal ty a = 
   case ty of
     "rule" -> Free a
     _ -> Var a
+-- some basic lexing
+remove_ws str =
+  let f_str = filter (\s -> s /= ' ') str in
+  let sp_str = zip (split "\"" str) [0..] in
+  join "\"" [if (even i) then replace "-->" ":r_eq" $ replace "=>" "?implies" x else x | (x,i) <- sp_str]
+  
 
 make_rule_stmt :: Stmt String -> Rule String
 make_rule_stmt stmt =
   case stmt of
     (Op "-->" a b) -> Rule a b Equality
     (Op "*->" a b) -> Rule a b Strict
-    (Op "#" a b) -> Rule a b Unconditional
     _ -> Rule (Var "NOP") (Var "NOP") Strict -- fail...
-    
+
+--parse rule from string
 make_rule :: String -> Rule String
 make_rule str =
-  let stmt = parse (expr "rule") "" str in
+  let stmt = parse (expr "rule") "" $ remove_ws str in
   case stmt of
     Right (Op "-->" a b) -> Rule a b Equality
     Right (Op "*->" a b) -> Rule a b Strict
-    Right (Op "#" a b) -> Rule a b Unconditional
     _ -> Rule (Free "A") (Free "A") Strict -- fail...
     
 make_ruleset :: String -> [String] -> String -> Ruleset String
@@ -34,9 +41,10 @@ make_ruleset name lst descr =
   let rules = List.map make_rule lst in
   Ruleset name rules descr
 
+--parse stmt from string
 make_stmt :: String -> Stmt String
 make_stmt str =
-  let stmt = parse (expr "stmt") "" str in
+  let stmt = parse (expr "stmt") "" $ remove_ws str in
   case stmt of
     Right a -> a
     _ -> (Var "NOP") --fail
@@ -50,29 +58,28 @@ expr :: String -> Parser (Stmt String)
 expr ty = buildExpressionParser table (factor ty) <?> "expression"
 
 table = [
-    [prefix "~" neg, prefix "#" uncond_rule]
+    [prefix "~" neg]
   , [op "." (sop_gen ".") AssocRight]
-  , [op "<-" (sop_gen "<-") AssocLeft]
   , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
-  , [op "*" (sop_gen "*") AssocLeft]
-  , [op "+" (sop_gen "+") AssocLeft]
-	, [op "=>" (sop_gen "=>") AssocLeft]
-	, [op "-->" (sop_gen "-->") AssocLeft, op "~>" (sop_gen "*->") AssocLeft] ]
+  , [op "*" (sop_gen "*") AssocLeft, op "/" (sop_gen "/") AssocLeft]
+  , [op "+" (sop_gen "+") AssocLeft, op "-" (sop_gen "-") AssocLeft]
+  , [op "?implies" (sop_gen "=>") AssocLeft, op "=" (sop_gen "=") AssocLeft]
+	, [op ":r_eq" (sop_gen "-->") AssocLeft, op "~>" (sop_gen "*->") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
     prefix name fun = Prefix (do{ string name; return fun })
 
-factor ty = do { char '('; x <- expr ty; char ')'; return x }
+factor ty = do { ws; char '('; ws; x <- expr ty; ws; char ')'; ws; return x }
    <|> constant
-	 <|> number ty
-	 <?> "simple expression"
+	 <|> variable ty
+	 <?> "statement"
 
 word = many1 digit <|> many1 letter
 
-number :: String -> Parser (Stmt String)
-number ty = do { ds <- word; return (terminal ty ds) } <?> "number"
+variable :: String -> Parser (Stmt String)
+variable ty = do { ds <- word; return (terminal ty ds) } <?> "variable"
 constant :: Parser (Stmt String)
-constant = do {char '$'; x <- word; return (terminal "stmt" x)}
+constant = do {char '$'; x <- word; return (terminal "stmt" x)} <?> "constant"
 
 -- For web service
 

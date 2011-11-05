@@ -28,12 +28,12 @@ check_proof = do
   reqs <- look "reqs"
   p <- look "proof"
   goal <- look "goal"
-  let rs_parsed = parse rulesets "" rs
-  let as_parsed = parse assumptions "" as
-  let g_parsed = parse (expr "stmt") "" goal
+  let rs_parsed = parse rulesets "" $ remove_ws rs
+  let as_parsed = parse assumptions "" $ remove_ws as
+  let g_parsed = parse (expr "stmt") "" $ remove_ws goal
   case (rs_parsed, as_parsed, g_parsed) of 
     (Right r, Right a, Right g) ->
-      let pres = parse proof "" p in
+      let pres = parse proof "" $ remove_ws p in
       case pres of
         Right pstmts -> do
           res <- do_proof r a pstmts g []
@@ -47,9 +47,9 @@ check_assign = do
   rs <- look "rulesets"
   as <- look "assumptions"
   g <- look "goal"
-  let rs_parsed = parse rulesets "" rs
-  let as_parsed = parse assumptions "" as
-  let g_parsed = parse (expr "stmt") "" g
+  let rs_parsed = parse rulesets "" $ remove_ws rs
+  let as_parsed = parse assumptions "" $ remove_ws as
+  let g_parsed = parse (expr "stmt") "" $ remove_ws g
   case (rs_parsed, as_parsed, g_parsed) of 
     (Right r, Right a, Right go) ->
       ok $ toResponse $ foldr (++) [] [pretty_ruleset x | x <- r]
