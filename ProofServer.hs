@@ -100,7 +100,7 @@ match_d :: (Expr String -> [String]) -> [Expr String] -> [String] -> Bool
 match_d f [] m = False
 match_d f (x:xs) m = 
   let rules = sort $ filter (\x -> x /= "Free" && x /= "_") (f x) in
-  let ms = filter (\f-> f /= "") $ sort m in
+  let ms = filter (\f-> f /= "" && f /= "Free") $ sort m in
   if ms == rules then True else match_d f xs m
 
 f_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO (Maybe [Expr String])

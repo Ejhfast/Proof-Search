@@ -6,7 +6,7 @@ import ProofTypes
 import ProofParse
 import ProofFuncs
 
-sub_depth_level = 5 -- Search depth for subexpressions
+sub_depth_level = 7 -- Search depth for subexpressions
 
 --test for consisent substitutions
 consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] -> Bool
