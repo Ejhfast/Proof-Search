@@ -94,13 +94,13 @@ rulesets = many ruleset
 assumption = do {w <- digitstring; char ':'; ws; x <- (expr "stmt"); char ';'; ws; return (Expr w x (Nothing,Nothing))}
 assumptions = many assumption
 
-proof_1l = do {line <- digitstring; char ':'; ws; x <- (expr "stmt"); return (ProofStmt line x [] [])}
-proof_2l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; return (ProofStmt line x rules [])}
-proof_3l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; assumps <- specifier; return (ProofStmt line x rules assumps)}
+proof_1l = do {line <- digitstring; char ':'; ws; x <- (expr "stmt"); ws; char ';'; ws; return (ProofStmt line x [] [])}
+proof_2l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; return (ProofStmt line x rules [])}
+proof_3l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; assumps <- specifier; ws; char ';'; ws; return (ProofStmt line x rules assumps)}
 
-proof = try (sepBy proof_3l eol)
-  <|> try (sepBy proof_2l eol)
-  <|> (sepBy proof_1l eol)
+proof = try (many proof_3l) --(sepBy proof_3l eol)
+  <|> try (many proof_2l) --(sepBy proof_2l eol)
+  <|> many proof_1l --(sepBy proof_1l eol)
 
 desc = digit <|> letter <|> char '-' <|> char '>' <|> char '<' <|> char '~' <|> char ' ' 
   <|> char '*' <|> char '+' <|> char '=' <|> char '(' <|> char ')' <|> char '.' <|> char '&' <|> char '|' <|> char ',' <|> char '⟘'
