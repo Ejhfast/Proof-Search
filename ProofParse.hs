@@ -17,7 +17,7 @@ terminal ty a =
 remove_ws str =
   let f_str = filter (\s -> s /= ' ') str in
   let sp_str = zip (split "\"" str) [0..] in
-  join "\"" [if (even i) then replace "-->" ":r_eq" $ replace "=>" "?implies" x else x | (x,i) <- sp_str]
+  join "\"" [if (even i) then replace "-->" ":r_eq" $ replace "=>" "?implies" $ replace " " "" x else x | (x,i) <- sp_str]
   
 
 make_rule_stmt :: Stmt String -> Rule String
