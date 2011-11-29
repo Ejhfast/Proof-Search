@@ -3,57 +3,17 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import ProofTypes
 import Data.String.Utils
+import Control.Monad
 import List
 
-forceList [] = ()
-forceList (x:xs) = forceList xs
+-- Tex infastructure
 
 parse_tex_command :: String -> Int -> Parser String -> Parser String
-parse_tex_command command args parse_rest = 
-  case args of
-    1 -> tex_1 command parse_rest
-    2 -> tex_2 command parse_rest
-    3 -> tex_3 command parse_rest
-    4 -> tex_4 command parse_rest
-    _ -> string "??fail??" <?> "fail" 
- 
-tex_1 :: String -> Parser String -> Parser String
-tex_1 command parse_rest = do
-  c <- string command
-  m <- modifiers parse_rest
-  a1 <- arg_parse parse_rest
-  eof
-  return c
-  
-tex_2 :: String -> Parser String -> Parser String
-tex_2 command parse_rest = do
-  c <- string command
-  m <- modifiers parse_rest
-  a1 <- arg_parse parse_rest
-  a2 <- arg_parse parse_rest
-  eof
-  return c
-
-tex_3 :: String -> Parser String -> Parser String
-tex_3 command parse_rest = do
-  c <- string command
-  m <- modifiers parse_rest
-  a1 <- arg_parse parse_rest
-  a2 <- arg_parse parse_rest
-  a3 <- arg_parse parse_rest
-  eof
-  return c
-
-tex_4 :: String -> Parser String -> Parser String
-tex_4 command parse_rest = do
-  c <- string command
-  m <- modifiers parse_rest
-  a1 <- arg_parse parse_rest
-  a2 <- arg_parse parse_rest
-  a3 <- arg_parse parse_rest
-  a4 <- arg_parse parse_rest
-  eof
-  return c
+parse_tex_command command args parse_rest = do
+	c <- string command
+	m <- modifiers parse_rest
+	get_args <- count args $ arg_parse parse_rest
+	return c
 
 arg_parse :: Parser String -> Parser String
 arg_parse parse_rest = 
@@ -76,5 +36,44 @@ modifiers parse_rest = do
 fake_parse :: Parser String
 fake_parse = string "0"
 
-test_parse = parse_tex_command "/lala" 3 fake_parse
+tryall :: [Parser String] -> Parser String
+tryall ps = foldr (\x -> (<|> (try x))) mzero ps
+
+recurse :: Parser String
+recurse = try fake_parse <|> all_funcs
+
+all_funcs :: Parser String
+all_funcs = tryall [x recurse | x <- [go,lala,eq_rw,rw]]
+
+-- Basic Expressions
+-- \eq_rewrite{A+B}{B+A}
+-- \rewrite{A+B}{B+A}
+
+-- expr = buildExpressionParser table primative <?> "expression"
+-- primative = many1 digit
+-- 
+-- table = [
+--     [prefix "~" neg]
+--   , [op "." (sop_gen ".") AssocRight]
+--   , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
+--   , [op "*" (sop_gen "*") AssocLeft, op "/" (sop_gen "/") AssocLeft]
+--   , [op "+" (sop_gen "+") AssocLeft, op "-" (sop_gen "-") AssocLeft]
+--   , op "=" (sop_gen "=") AssocLeft]
+--   where
+--     op s f assoc = Infix (do { string s; return f }) assoc
+--     prefix name fun = Prefix (do{ string name; return fun })
+
+-- Test
+
+lala = parse_tex_command "\\lala" 3
+go = parse_tex_command "\\go" 2
+eq_rw = parse_tex_command "\\eq_rewrite" 2
+rw = parse_tex_command "\\rewrite" 2
+
+
+run_parse = do
+	x <- all_funcs;
+	eof;
+	return x
+
   
