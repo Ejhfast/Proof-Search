@@ -122,8 +122,8 @@ test12 =
   time_test to_prove [r1] [s1]
   
 test13 =
-  let r1 = make_ruleset "Imp" ["$true-->(A=>A)"] ""  in
-  let s1 = make_expr "A1" "true" in
+  let r1 = make_ruleset "Imp" ["(A=>A)"] ""  in
+  let s1 = make_expr "A1" "B" in
   let to_prove = make_stmt "(V=>V)=>(V=>V)" in
   time_test to_prove [r1] [s1]
   
