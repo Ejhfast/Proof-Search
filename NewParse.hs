@@ -1,4 +1,4 @@
-module ProofParse where
+module NewParse where
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import ProofTypes
@@ -16,7 +16,7 @@ data ProofLine = ProofLine {proof_name :: String, statement :: Stmt String, from
 remove_ws :: String -> String
 remove_ws str =
   let sp_str = zip (split "\"" str) [0..] in
-  Data.join "\"" [if (even i) then filter (\s -> s /= ' ') x else x | (x,i) <- sp_str]
+  Data.join "\"" [if (even i) then filter (\s -> s /= ' ' && s /= '\n') x else x | (x,i) <- sp_str]
 
 -- Type helpers
 
@@ -91,7 +91,7 @@ recurse :: String -> Parser (Stmt String)
 recurse kind = try (expr (all_funcs kind) kind) <|> all_funcs kind
 
 all_funcs :: String -> Parser (Stmt String)
-all_funcs kind = tryall [x $ recurse kind | x <- [go,lala,eq_rw,rw]]
+all_funcs kind = tryall [x $ recurse kind | x <- [go,lala]]
 
 -- Parse out rulesets
 
@@ -162,10 +162,10 @@ get_description = do
   return $ foldr (\x y -> x ++ " " ++ y) "" ws
 
 get_symbol :: Parser String
-get_symbol = many1 letter
+get_symbol = many1 (digit <|> letter)
 
 declared_constant :: Parser (Stmt String)
-declared_constant = do {char '$'; x <- get_symbol; return (Var x)} <?> "constant"
+declared_constant = do {char '$'; x <- get_symbol; return (Op "Symbol" (Var x) (Op "Meta" (Var "NOP") (Var "NOP")))} <?> "constant"
 
 number :: Parser (Stmt String)
 number = do {x <- many1 digit; return (Var x)}
@@ -193,7 +193,8 @@ table = [
   , [op "&" (func_tree "&") AssocLeft, op "|" (func_tree "|") AssocLeft, op "," (func_tree ",") AssocLeft]
   , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
   , [op "+" (func_tree "+") AssocLeft, op "-" (func_tree "-") AssocLeft]
-  , [op "=" (func_tree "=") AssocLeft]]
+  , [op "=" (func_tree "=") AssocLeft]
+  , [op ":=" (func_tree "rewrite") AssocLeft, op "~>" (func_tree "eq_rewrite") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
     prefix name fun = Prefix (do{ string name; return fun })
@@ -202,8 +203,8 @@ table = [
 
 lala = parse_tex_command "lala" 3
 go = parse_tex_command "go" 2
-eq_rw = parse_tex_command "eq_rewrite" 2
-rw = parse_tex_command "rewrite" 2
+--eq_rw = parse_tex_command "eq_rewrite" 2
+--rw = parse_tex_command "rewrite" 2
 
 run_parse kind = do
 	x <- recurse kind;

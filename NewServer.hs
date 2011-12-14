@@ -28,12 +28,12 @@ check_proof = do
   reqs <- look "reqs"
   p <- look "proof"
   goal <- look "goal"
-  let rs_parsed = parse rulesets "" $ remove_ws rs
-  let as_parsed = parse assumptions "" $ remove_ws as
-  let g_parsed = parse (expr "stmt") "" $ remove_ws goal
+  let rs_parsed = parse parse_rulesets "" $ remove_ws rs
+  let as_parsed = parse parse_assumptions "" $ remove_ws as
+  let g_parsed = parse (recurse "ground") "" $ remove_ws goal
   case (rs_parsed, as_parsed, g_parsed) of 
     (Right r, Right a, Right g) ->
-      let pres = parse proof "" $ remove_ws p in
+      let pres = parse parse_proof "" $ remove_ws p in
       case pres of
         Right pstmts -> do
           res <- do_proof r a pstmts g []
@@ -47,45 +47,45 @@ check_assign = do
   rs <- look "rulesets"
   as <- look "assumptions"
   g <- look "goal"
-  let rs_parsed = parse rulesets "" $ remove_ws rs
-  let as_parsed = parse assumptions "" $ remove_ws as
-  let g_parsed = parse (expr "stmt") "" $ remove_ws g
+  let rs_parsed = parse parse_rulesets "" $ remove_ws rs
+  let as_parsed = parse parse_assumptions "" $ remove_ws as
+  let g_parsed = parse (recurse "ground") "" $ remove_ws g
   case (rs_parsed, as_parsed, g_parsed) of 
     (Right r, Right a, Right go) ->
       ok $ toResponse $ foldr (++) [] [pretty_ruleset x | x <- r]
     (p1,p2,p3) -> ok $ toResponse $ "Fail: bad parse in assumptions/rulesets\n"++(show p1)++"\n"++(show p2)++"\n"++(show p3)
 
-proved :: [(String,(JSObject String))] -> ProofStmt -> [String] -> [String] -> [(String,(JSObject String))]
-proved msg pstmt rules assums = ((nm pstmt),attrs):msg
+proved :: [(String,(JSObject String))] -> ProofLine -> [String] -> [String] -> [(String,(JSObject String))]
+proved msg pstmt rules assums = ((proof_name pstmt),attrs):msg
   where attrs = toJSObject [("status","proved"),("rules",(show rules)),("assumptions",(show assums))]
-  --msg++"Proved "++(nm pstmt)++" with "++(show rules)++" and assumptions "++(show assums)++".\n"
-failed :: [(String,(JSObject String))] -> ProofStmt -> [Expr String] -> [(String,(JSObject String))]
-failed msg pstmt [] = ((nm pstmt),attrs):msg
+  --msg++"Proved "++(proof_name pstmt)++" with "++(show rules)++" and assumptions "++(show assums)++".\n"
+failed :: [(String,(JSObject String))] -> ProofLine -> [Expr String] -> [(String,(JSObject String))]
+failed msg pstmt [] = ((proof_name pstmt),attrs):msg
   where attrs = toJSObject [("status","failed")]
-failed msg pstmt (h:hs) = ((nm pstmt),attrs):msg
+failed msg pstmt (h:hs) = ((proof_name pstmt),attrs):msg
   where attrs = toJSObject [("status","failed"),("hint_rules",(show $ rule_deps h)),("hint_assumps",(show $ deps h))]
   
-  --msg++"Failed to prove "++(nm pstmt)++" with "++(show $ r_deps pstmt)++" and assumptions "++(show $ a_deps pstmt)++".\n"
+  --msg++"Failed to prove "++(proof_name pstmt)++" with "++(show $ from_rules pstmt)++" and assumptions "++(show $ with_assumps pstmt)++".\n"
   
 pretty_ruleset :: Ruleset String -> String
 pretty_ruleset ruleset =
   (show $ name ruleset)++": "++(show $ descrip ruleset)++"\n" 
 
-do_proof :: [Ruleset String] -> [Expr String] -> [ProofStmt] -> Stmt String -> [(String,(JSObject String))] -> ServerPartT IO String
+do_proof :: [Ruleset String] -> [Expr String] -> [ProofLine] -> Stmt String -> [(String,(JSObject String))] -> ServerPartT IO String
 do_proof _ _ [] _ msg = do { return $ encode $ toJSObject msg }
 do_proof rs as (p:ps) goal msg = do
-  let use_rules = if (r_deps p) == [] then rs else filter (\r -> ((name r) `elem` (r_deps p)) || (name r) == "Free" ) rs
-  let use_assumps = if (a_deps p) == [] then as else filter (\a -> (_id a) `elem` (a_deps p)) as
-  try_prove <- checkproof 3 (stmt p) use_rules use_assumps
+  let use_rules = if (from_rules p) == [] then rs else filter (\r -> ((name r) `elem` (from_rules p)) || (name r) == "Free" ) rs
+  let use_assumps = if (with_assumps p) == [] then as else filter (\a -> (_id a) `elem` (with_assumps p)) as
+  try_prove <- checkproof 3 (statement p) use_rules use_assumps
   case try_prove of
     Just (x:xs) ->
-      case verify_rules_assumptions (x:xs) (r_deps p) (a_deps p) of
-        True -> let newassum = Expr (nm p) (stmt p) (Nothing,Nothing) in
+      case verify_rules_assumptions (x:xs) (from_rules p) (with_assumps p) of
+        True -> let newassum = Expr (proof_name p) (statement p) (Nothing,Nothing) in
           if (PT.body x) == goal then return $ encode $ toJSObject $ (proved msg p (rule_deps x) (deps x))
             else do_proof rs (newassum:as) ps goal (proved msg p (rule_deps x) (deps x))
         False -> return $ encode $ toJSObject $ failed msg p []
     _ -> do
-      try_prove <- checkproof 5 (stmt p) rs as
+      try_prove <- checkproof 5 (statement p) rs as
       case try_prove of
         Just x -> return $ encode $ toJSObject $ failed msg p x
         otherwise -> return $ encode $ toJSObject $ failed msg p []
