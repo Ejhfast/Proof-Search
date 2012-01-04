@@ -39,6 +39,20 @@ make_rule stmt =
     (Op "eq_rewrite" a b) -> Rule a b Equality
     (Op "rewrite" a b) -> Rule a b Strict
     _ -> Rule (Var "NOP") (Var "NOP") Strict -- fail...
+
+make_rule_str str =
+	let try = parse (recurse "free") "" str in
+	case try of
+		(Right x) -> make_rule x
+		_ -> Rule (Var "NOP") (Var "NOP") Strict
+		
+make_stmt_str str =
+	let try = parse (recurse "ground") "" str in
+	case try of
+		(Right x) ->  x
+		_ -> Var "NOP"
+
+
     
 do_parse_rule :: String -> Rule String
 do_parse_rule str =
@@ -91,7 +105,7 @@ recurse :: String -> Parser (Stmt String)
 recurse kind = try (expr (all_funcs kind) kind) <|> all_funcs kind
 
 all_funcs :: String -> Parser (Stmt String)
-all_funcs kind = tryall [x $ recurse kind | x <- [go,lala]]
+all_funcs kind = tryall [x $ recurse kind | x <- [go,lala,cond,prob,norm,phi]]
 
 -- Parse out rulesets
 
@@ -165,7 +179,7 @@ get_symbol :: Parser String
 get_symbol = many1 (digit <|> letter)
 
 declared_constant :: Parser (Stmt String)
-declared_constant = do {char '$'; x <- get_symbol; return (Op "Symbol" (Var x) (Op "Meta" (Var "NOP") (Var "NOP")))} <?> "constant"
+declared_constant = do {char '$'; x <- get_symbol; return (Var x)} <?> "constant"
 
 number :: Parser (Stmt String)
 number = do {x <- many1 digit; return (Var x)}
@@ -174,9 +188,15 @@ symbol :: String -> Parser (Stmt String)
 symbol kind = do
   x <- get_symbol
   m <- modifiers $ recurse kind
-  case kind of
-    "free" -> return $ Op "Symbol" (Free x) m
-    "ground" -> return $ Op "Symbol" (Var x) m
+  case m of
+	Op "Meta" (Var "NOP") (Var "NOP") ->
+		case kind of
+			"free" -> return (Free x)
+			"ground" -> return (Var x)
+	_ ->
+		case kind of
+			"free" -> return $ Op "Symbol" (Free x) m
+			"ground" -> return $ Op "Symbol" (Var x) m
 
 factor :: Parser (Stmt String) -> String -> Parser (Stmt String)
 factor tex_parse kind = do {char '('; x <- expr tex_parse kind; char ')'; return x }
@@ -203,6 +223,10 @@ table = [
 
 lala = parse_tex_command "lala" 3
 go = parse_tex_command "go" 2
+cond = parse_tex_command "cond" 2
+prob = parse_tex_command "P" 1
+norm = parse_tex_command "norm" 1
+phi = parse_tex_command "t" 1
 --eq_rw = parse_tex_command "eq_rewrite" 2
 --rw = parse_tex_command "rewrite" 2
 
