@@ -19,7 +19,7 @@ app = do
   decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000) 
   msum [   dir "check_proof" $ check_proof,
            dir "check_assignment" $ check_assign ]
-           
+
 check_proof :: ServerPart Response
 check_proof = do 
   methodM POST

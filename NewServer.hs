@@ -18,8 +18,14 @@ app :: ServerPart Response
 app = do 
   decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000) 
   msum [   dir "check_proof" $ check_proof,
-           dir "check_assignment" $ check_assign ]
+           dir "check_assignment" $ check_assign,
+           dir "health" $ health ]
            
+health :: ServerPart Response
+health = do
+ methodM GET
+ ok $ toResponse "Healthy"
+
 check_proof :: ServerPart Response
 check_proof = do 
   methodM POST
@@ -114,10 +120,11 @@ f_search depth start toprove rulesets stmts =
     
 timed_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> (Maybe [Expr String])
 timed_search depth start toprove rulesets stmts = 
-  let search = unsafePerformIO $ S.timeout 1000000 $ f_search depth start toprove rulesets stmts in
-  case search of
-    Just x -> x
-    Nothing -> Nothing
+  let search = unsafePerformIO $ f_search depth start toprove rulesets stmts in -- $ S.timeout 1000000 
+  search
+  -- case search of
+  --    Just x -> x
+  --    Nothing -> Nothing
 
 checkproof :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> ServerPartT IO (Maybe [Expr String])
 checkproof depth stmt rulesets assumps =
