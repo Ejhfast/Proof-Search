@@ -40,23 +40,23 @@ make_rule stmt =
     (Op "rewrite" a b) -> Rule a b Strict
     _ -> Rule (Var "NOP") (Var "NOP") Strict -- fail...
 
-make_rule_str str =
-	let try = parse (recurse "free") "" str in
+make_rule_str str custom_tex =
+	let try = parse (recurse "free" custom_tex) "" str in
 	case try of
 		(Right x) -> make_rule x
 		_ -> Rule (Var "NOP") (Var "NOP") Strict
 		
-make_stmt_str str =
-	let try = parse (recurse "ground") "" str in
+make_stmt_str str custom_tex =
+	let try = parse (recurse "ground" custom_tex) "" str in
 	case try of
 		(Right x) ->  x
 		_ -> Var "NOP"
 
 
     
-do_parse_rule :: String -> Rule String
-do_parse_rule str =
-  let stmt = parse (run_parse "free") "" $ remove_ws str in
+do_parse_rule :: String -> [(String, Int)] -> Rule String
+do_parse_rule str custom_tex =
+  let stmt = parse (run_parse "free" custom_tex) "" $ remove_ws str in
   case stmt of
     Right a -> make_rule a
     _ -> Rule (Free "A") (Free "A") Strict -- fail...
@@ -70,6 +70,10 @@ parse_tex_command command args parse_rest = do
 	m <- modifiers parse_rest
 	get_args <- count args $ arg_parse parse_rest
 	return $ Op command (argument_tree get_args) m
+	
+create_commands :: [(String, Int)] -> [(Parser (Stmt String) -> Parser (Stmt String))]
+create_commands lst = 
+  [parse_tex_command name args | (name, args) <- lst]
 
 arg_parse :: Parser (Stmt String) -> Parser (Stmt String)
 arg_parse parse_rest = 
@@ -101,48 +105,48 @@ tryall ps = foldr (\x -> (<|> (try x))) mzero ps
 
 -- Main calls here to parse out baby latex expressions
 
-recurse :: String -> Parser (Stmt String)
-recurse kind = try (expr (all_funcs kind) kind) <|> all_funcs kind
+recurse :: String -> [(String, Int)] -> Parser (Stmt String)
+recurse kind custom_tex = try (expr (all_funcs kind custom_tex) kind custom_tex) <|> all_funcs kind custom_tex
 
-all_funcs :: String -> Parser (Stmt String)
-all_funcs kind = tryall [x $ recurse kind | x <- [go,lala,cond,prob,norm,phi]]
+all_funcs :: String -> [(String, Int)] -> Parser (Stmt String)
+all_funcs kind custom_tex = tryall [x $ recurse kind custom_tex | x <- create_commands custom_tex]--[go,lala,cond,prob,norm,phi]]
 
 -- Parse out rulesets
 
-parse_rule :: Parser (Rule String)
-parse_rule = do
-  x <- recurse "free"; -- A rule is just a certain type of statement in the language
+parse_rule :: [(String, Int)] -> Parser (Rule String)
+parse_rule custom_tex = do
+  x <- recurse "free" custom_tex; -- A rule is just a certain type of statement in the language
   return $ make_rule x
 
-parse_ruleset :: Parser (Ruleset String)
-parse_ruleset = do
+parse_ruleset :: [(String, Int)] -> Parser (Ruleset String)
+parse_ruleset custom_tex = do
   name <- get_symbol;
   string ":{\"";
   descrip <- get_description;
   string "\";";
-  rules <- sepBy parse_rule (char ';');
+  rules <- sepBy (parse_rule custom_tex) (char ';');
   string "}";
   return $ Ruleset name rules descrip
   
-parse_rulesets :: Parser [Ruleset String]
-parse_rulesets = many1 parse_ruleset
+parse_rulesets :: [(String, Int)] -> Parser [Ruleset String]
+parse_rulesets custom_tex = many1 $ parse_ruleset custom_tex
   
-parse_assumption :: Parser (Expr String)
-parse_assumption = do
+parse_assumption :: [(String, Int)] -> Parser (Expr String)
+parse_assumption custom_tex = do
   name <- get_symbol;
   char ':';
-  expr <- recurse "ground";
+  expr <- recurse "ground" custom_tex;
   char ';'
   return $ Expr name expr (Nothing,Nothing)
 
-parse_assumptions :: Parser [Expr String]
-parse_assumptions = many1 parse_assumption
+parse_assumptions :: [(String, Int)] -> Parser [Expr String]
+parse_assumptions custom_tex = many1 $ parse_assumption custom_tex
 
-parse_proofline :: Parser ProofLine
-parse_proofline = do
+parse_proofline :: [(String, Int)] -> Parser ProofLine
+parse_proofline custom_tex = do
   name <- get_symbol;
   char ':';
-  conclusion <- recurse "ground";
+  conclusion <- recurse "ground" custom_tex;
   char ';';
   rules <- optionMaybe $ with_semi stringlist;
   assumptions <- optionMaybe $ with_semi stringlist;
@@ -152,8 +156,8 @@ parse_proofline = do
     (Nothing, Just a) -> return $ ProofLine name conclusion [] a
     _ -> return $ ProofLine name conclusion [] []
     
-parse_proof :: Parser [ProofLine]
-parse_proof = many1 parse_proofline
+parse_proof :: [(String, Int)] -> Parser [ProofLine]
+parse_proof custom_tex = many1 $ parse_proofline custom_tex
   
 
 -- Primative Expressions
@@ -184,10 +188,10 @@ declared_constant = do {char '$'; x <- get_symbol; return (Var x)} <?> "constant
 number :: Parser (Stmt String)
 number = do {x <- many1 digit; return (Var x)}
 
-symbol :: String -> Parser (Stmt String)
-symbol kind = do
+symbol :: String -> [(String,Int)] -> Parser (Stmt String)
+symbol kind custom_tex = do
   x <- get_symbol
-  m <- modifiers $ recurse kind
+  m <- modifiers $ recurse kind custom_tex
   case m of
 	Op "Meta" (Var "NOP") (Var "NOP") ->
 		case kind of
@@ -198,14 +202,14 @@ symbol kind = do
 			"free" -> return $ Op "Symbol" (Free x) m
 			"ground" -> return $ Op "Symbol" (Var x) m
 
-factor :: Parser (Stmt String) -> String -> Parser (Stmt String)
-factor tex_parse kind = do {char '('; x <- expr tex_parse kind; char ')'; return x }
+factor :: Parser (Stmt String) -> String -> [(String,Int)] -> Parser (Stmt String)
+factor tex_parse kind custom_tex = do {char '('; x <- expr tex_parse kind custom_tex; char ')'; return x }
   <|> declared_constant
   <|> number
-  <|> symbol kind
+  <|> symbol kind custom_tex
   
-expr tex_parse kind = buildExpressionParser table (new_p kind) <?> "expression"
-  where new_p kind = tex_parse <|> (factor tex_parse kind)
+expr tex_parse kind custom_tex = buildExpressionParser table (new_p kind) <?> "expression"
+  where new_p kind = tex_parse <|> (factor tex_parse kind custom_tex)
 
 table = [
     [prefix "~" (unary_tree "~")]
@@ -219,27 +223,18 @@ table = [
     op s f assoc = Infix (do { string s; return f }) assoc
     prefix name fun = Prefix (do{ string name; return fun })
 
--- Test
-
-lala = parse_tex_command "lala" 3
-go = parse_tex_command "go" 2
-cond = parse_tex_command "cond" 2
-prob = parse_tex_command "P" 1
-norm = parse_tex_command "norm" 1
-phi = parse_tex_command "t" 1
---eq_rw = parse_tex_command "eq_rewrite" 2
---rw = parse_tex_command "rewrite" 2
-
-run_parse kind = do
-	x <- recurse kind;
+run_parse kind custom_tex = do
+	x <- recurse kind custom_tex;
 	eof;
 	return x
+	
+mytex = [("go",2),("rewrite",2)]
 
 ex_rule = "\\rewrite{\\go{1}{1}}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}"
 ex_ruleset = "myfule:{\"ok go\";"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
-test_parse = parse (run_parse "ground") "" ex_rule
-test_ruleset = parse parse_ruleset "" $ ex_ruleset
-test_rulesets = parse parse_rulesets "" $ ex_ruleset++ex_ruleset++ex_ruleset
+test_parse = parse (run_parse "ground" mytex) "" ex_rule
+test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset
+test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
 test_rule = case test_parse of 
   Right x -> Just (make_rule x)
   _ -> Nothing

@@ -35,7 +35,7 @@ match stmt rule =
             False -> false_mapping -- not the same operator
         Free s1 -> false_mapping --should not a Free in statements
 
--- match rules with multiple conditions
+-- match rules with two conditions
 multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> [Expr String]
 multi_match cond conc stmt facts expr_deps r_deps = case cond of
   (Op "," a b) -> case (match stmt a) of
