@@ -14,9 +14,7 @@ data ProofLine = ProofLine {proof_name :: String, statement :: Stmt String, from
 -- Helpers
 
 remove_ws :: String -> String
-remove_ws str =
-  let sp_str = zip (split "\"" str) [0..] in
-  Data.join "\"" [if (even i) then filter (\s -> s /= ' ' && s /= '\n') x else x | (x,i) <- sp_str]
+remove_ws = filter (\s -> s /= ' ' && s /= '\n')
 
 -- Type helpers
 
@@ -121,12 +119,11 @@ parse_rule custom_tex = do
 parse_ruleset :: [(String, Int)] -> Parser (Ruleset String)
 parse_ruleset custom_tex = do
   name <- get_symbol;
-  string ":{\"";
-  descrip <- get_description;
-  string "\";";
-  rules <- sepBy (parse_rule custom_tex) (char ';');
+  string "{";
+  rules <- endBy (parse_rule custom_tex) (char ';');
+  optional $ char ';'
   string "}";
-  return $ Ruleset name rules descrip
+  return $ Ruleset name rules
   
 parse_rulesets :: [(String, Int)] -> Parser [Ruleset String]
 parse_rulesets custom_tex = many1 $ parse_ruleset custom_tex
@@ -173,11 +170,6 @@ stringlist = do
   items <- sepBy get_symbol (char ',');
   char ']';
   return items
-
-get_description :: Parser String
-get_description = do
-  ws <- sepBy get_symbol (string " ");
-  return $ foldr (\x y -> x ++ " " ++ y) "" ws
 
 get_symbol :: Parser String
 get_symbol = many1 (digit <|> letter)
@@ -231,9 +223,10 @@ run_parse kind custom_tex = do
 mytex = [("go",2),("rewrite",2)]
 
 ex_rule = "\\rewrite{\\go{1}{1}}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}"
-ex_ruleset = "myfule:{\"ok go\";"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
+ex_ruleset = "myfule{"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
+ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
 test_parse = parse (run_parse "ground" mytex) "" ex_rule
-test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset
+test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset2
 test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
 test_rule = case test_parse of 
   Right x -> Just (make_rule x)

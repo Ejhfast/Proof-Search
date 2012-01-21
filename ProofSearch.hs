@@ -3,7 +3,7 @@ import Prelude
 import List
 import qualified Data.Map as Map
 import ProofTypes
-import ProofParse
+import NewParse
 import ProofFuncs
 
 sub_depth_level = 7 -- Search depth for subexpressions
@@ -105,6 +105,6 @@ apply_rulesets_stmts stmts rulesets = concat [apply_rulesets s rulesets stmts | 
 backward_search :: Int -> Expr String -> [Expr String] -> [Ruleset String] -> [Expr String]
 backward_search 0 start stmts _ = [start] ++ stmts
 backward_search depth start stmts rulesets = -- reverse direction of rulesets
-  let rev_rules = map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r)) $ set rs) (descrip rs)) rulesets in 
+  let rev_rules = map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r)) $ set rs)) rulesets in 
   let newstmts = List.nub $ apply_rulesets start rev_rules stmts in
   backward_search (depth - 1) start newstmts rulesets
