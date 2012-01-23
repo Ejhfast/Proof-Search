@@ -6,7 +6,7 @@ import ProofTypes
 import NewParse
 import ProofFuncs
 
-sub_depth_level = 7 -- Search depth for subexpressions
+sub_depth_level = 15 -- Search depth for subexpressions
 
 --test for consisent substitutions
 consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] -> Bool
@@ -102,9 +102,9 @@ apply_rulesets expr rulesets facts = concat [apply_ruleset expr rs facts | rs <-
 apply_rulesets_stmts :: [Expr String] -> [Ruleset String] -> [Expr String]
 apply_rulesets_stmts stmts rulesets = concat [apply_rulesets s rulesets stmts | s <- stmts]
 
-backward_search :: Int -> Expr String -> [Expr String] -> [Ruleset String] -> [Expr String]
-backward_search 0 start stmts _ = [start] ++ stmts
-backward_search depth start stmts rulesets = -- reverse direction of rulesets
-  let rev_rules = map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r)) $ set rs)) rulesets in 
-  let newstmts = List.nub $ apply_rulesets start rev_rules stmts in
-  backward_search (depth - 1) start newstmts rulesets
+back_apply_rulesets_stmts :: [Expr String] -> [Ruleset String] -> [Expr String]
+back_apply_rulesets_stmts stmts rulesets = concat [apply_rulesets s (rev_rules rulesets) stmts | s <- stmts]
+
+rev_rules :: [Ruleset String] -> [Ruleset String]
+rev_rules rsets = 
+  map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r)) $ set rs)) rsets

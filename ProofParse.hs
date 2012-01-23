@@ -1,118 +1,235 @@
-module ProofParse where
+module NewParse where
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import ProofTypes
-import Data.String.Utils
+import Data.String.Utils as Data
+import Control.Monad
 import List
 
--- unary generators
-neg a = Op "~" a (Var "NOP")
-sop_gen op a b = Op op a b
--- terminals
-terminal ty a = 
-  case ty of
-    "rule" -> Free a
-    _ -> Var a
--- some basic lexing
-remove_ws str =
-  let f_str = filter (\s -> s /= ' ') str in
-  let sp_str = zip (split "\"" str) [0..] in
-  join "\"" [if (even i) then replace "-->" ":r_eq" $ replace "=>" "?implies" $ replace " " "" x else x | (x,i) <- sp_str]
-  
+-- Define Proof Data Types
 
-make_rule_stmt :: Stmt String -> Rule String
-make_rule_stmt stmt =
+data ProofLine = ProofLine {proof_name :: String, statement :: Stmt String, from_rules :: [String], with_assumps :: [String]}
+  deriving (Eq,Show)
+
+-- Helpers
+
+remove_ws :: String -> String
+remove_ws = filter (\s -> s /= ' ' && s /= '\n')
+
+-- Type helpers
+
+-- Turn argument list into binary tree
+argument_tree :: [Stmt String] -> Stmt String
+argument_tree (x:xs) =
+  case xs of
+    [] -> Op "ARGS" x (Var "NOP")
+    _ -> Op "ARGS" x (argument_tree xs)
+
+func_tree :: String -> Stmt String -> Stmt String -> Stmt String    
+func_tree op a b = Op op a b
+
+unary_tree :: String -> Stmt String -> Stmt String
+unary_tree op a = Op op a (Var "NOP")
+
+make_rule :: Stmt String -> Rule String
+make_rule stmt =
   case stmt of
-    (Op "-->" a b) -> Rule a b Equality
-    (Op "*->" a b) -> Rule a b Strict
+    (Op "eq_rewrite" a b) -> Rule a b Equality
+    (Op "rewrite" a b) -> Rule a b Strict
     _ -> Rule (Var "NOP") (Var "NOP") Strict -- fail...
 
---parse rule from string
-make_rule :: String -> Rule String
-make_rule str =
-  let stmt = parse (expr "rule") "" $ remove_ws str in
+make_rule_str str custom_tex =
+	let try = parse (recurse "free" custom_tex) "" str in
+	case try of
+		(Right x) -> make_rule x
+		_ -> Rule (Var "NOP") (Var "NOP") Strict
+		
+make_stmt_str str custom_tex =
+	let try = parse (recurse "ground" custom_tex) "" str in
+	case try of
+		(Right x) ->  x
+		_ -> Var "NOP"
+
+
+    
+do_parse_rule :: String -> [(String, Int)] -> Rule String
+do_parse_rule str custom_tex =
+  let stmt = parse (run_parse "free" custom_tex) "" $ remove_ws str in
   case stmt of
-    Right (Op "-->" a b) -> Rule a b Equality
-    Right (Op "*->" a b) -> Rule a b Strict
+    Right a -> make_rule a
     _ -> Rule (Free "A") (Free "A") Strict -- fail...
     
-make_ruleset :: String -> [String] -> String -> Ruleset String
-make_ruleset name lst descr =
-  let rules = List.map make_rule lst in
-  Ruleset name rules descr
 
---parse stmt from string
-make_stmt :: String -> Stmt String
-make_stmt str =
-  let stmt = parse (expr "stmt") "" $ remove_ws str in
-  case stmt of
-    Right a -> a
-    _ -> (Var "NOP") --fail
+-- Tex infastructure
+
+parse_tex_command :: String -> Int -> Parser (Stmt String) -> Parser (Stmt String)
+parse_tex_command command args parse_rest = do
+	c <- string $ "\\" ++ command
+	m <- modifiers parse_rest
+	get_args <- count args $ arg_parse parse_rest
+	return $ Op command (argument_tree get_args) m
+	
+create_commands :: [(String, Int)] -> [(Parser (Stmt String) -> Parser (Stmt String))]
+create_commands lst = 
+  [parse_tex_command name args | (name, args) <- lst]
+
+arg_parse :: Parser (Stmt String) -> Parser (Stmt String)
+arg_parse parse_rest = 
+  do { char '{'; x <- parse_rest; char '}'; return x}
+
+underscore :: Parser (Stmt String) -> Parser (Stmt String)
+underscore parse_rest =
+  do { string "_{"; x <- parse_rest; char '}'; return x}
+
+carrot :: Parser (Stmt String) -> Parser (Stmt String)
+carrot parse_rest =
+  do { string "^{"; x <- parse_rest; char '}'; return x}
+  
+modifiers :: Parser (Stmt String) -> Parser (Stmt String)
+modifiers parse_rest = do
+  u <- optionMaybe $ underscore parse_rest
+  c <- optionMaybe $ carrot parse_rest
+  case (u,c) of
+    (Just uv, Just cv) -> return $ Op "Meta" uv cv
+    (Just uv, Nothing) -> return $ Op "Meta" uv (Var "NOP")
+    (Nothing, Just cv) -> return $ Op "Meta" (Var "NOP") cv
+    _ -> return $ Op "Meta" (Var "NOP") (Var "NOP")
+
+fake_parse :: Parser (Stmt String)
+fake_parse = do { x <- string "0"; return (Var x) }
+
+tryall :: [Parser (Stmt String)] -> Parser (Stmt String)
+tryall ps = foldr (\x -> (<|> (try x))) mzero ps
+
+-- Main calls here to parse out baby latex expressions
+
+recurse :: String -> [(String, Int)] -> Parser (Stmt String)
+recurse kind custom_tex = try (expr (all_funcs kind custom_tex) kind custom_tex) <|> all_funcs kind custom_tex
+
+all_funcs :: String -> [(String, Int)] -> Parser (Stmt String)
+all_funcs kind custom_tex = tryall [x $ recurse kind custom_tex | x <- create_commands custom_tex]--[go,lala,cond,prob,norm,phi]]
+
+-- Parse out rulesets
+
+parse_rule :: [(String, Int)] -> Parser (Rule String)
+parse_rule custom_tex = do
+  x <- recurse "free" custom_tex; -- A rule is just a certain type of statement in the language
+  return $ make_rule x
+
+parse_ruleset :: [(String, Int)] -> Parser (Ruleset String)
+parse_ruleset custom_tex = do
+  name <- get_symbol;
+  string "{";
+  rules <- endBy (parse_rule custom_tex) (char ';');
+  optional $ char ';'
+  string "}";
+  return $ Ruleset name rules
+  
+parse_rulesets :: [(String, Int)] -> Parser [Ruleset String]
+parse_rulesets custom_tex = many1 $ parse_ruleset custom_tex
+  
+parse_assumption :: [(String, Int)] -> Parser (Expr String)
+parse_assumption custom_tex = do
+  name <- get_symbol;
+  char ':';
+  expr <- recurse "ground" custom_tex;
+  char ';'
+  return $ Expr name expr (Nothing,Nothing)
+
+parse_assumptions :: [(String, Int)] -> Parser [Expr String]
+parse_assumptions custom_tex = many1 $ parse_assumption custom_tex
+
+parse_proofline :: [(String, Int)] -> Parser ProofLine
+parse_proofline custom_tex = do
+  name <- get_symbol;
+  char ':';
+  conclusion <- recurse "ground" custom_tex;
+  char ';';
+  rules <- optionMaybe $ with_semi stringlist;
+  assumptions <- optionMaybe $ with_semi stringlist;
+  case (rules, assumptions) of
+    (Just r, Just a) -> return $ ProofLine name conclusion r a
+    (Just r, Nothing) -> return $ ProofLine name conclusion r []
+    (Nothing, Just a) -> return $ ProofLine name conclusion [] a
+    _ -> return $ ProofLine name conclusion [] []
     
-make_expr :: String -> String -> Expr String
-make_expr name str =
-  let stmt = make_stmt str in
-  Expr name stmt (Nothing,Nothing)
+parse_proof :: [(String, Int)] -> Parser [ProofLine]
+parse_proof custom_tex = many1 $ parse_proofline custom_tex
+  
 
-expr :: String -> Parser (Stmt String)
-expr ty = buildExpressionParser table (factor ty) <?> "expression"
+-- Primative Expressions
+
+with_semi p = do
+  x <- p;
+  char ';'
+  return x;
+
+stringlist :: Parser [String]
+stringlist = do
+  char '[';
+  items <- sepBy get_symbol (char ',');
+  char ']';
+  return items
+
+get_symbol :: Parser String
+get_symbol = many1 (digit <|> letter)
+
+declared_constant :: Parser (Stmt String)
+declared_constant = do {char '$'; x <- get_symbol; return (Var x)} <?> "constant"
+
+number :: Parser (Stmt String)
+number = do {x <- many1 digit; return (Var x)}
+
+symbol :: String -> [(String,Int)] -> Parser (Stmt String)
+symbol kind custom_tex = do
+  x <- get_symbol
+  m <- modifiers $ recurse kind custom_tex
+  case m of
+	Op "Meta" (Var "NOP") (Var "NOP") ->
+		case kind of
+			"free" -> return (Free x)
+			"ground" -> return (Var x)
+	_ ->
+		case kind of
+			"free" -> return $ Op "Symbol" (Free x) m
+			"ground" -> return $ Op "Symbol" (Var x) m
+
+factor :: Parser (Stmt String) -> String -> [(String,Int)] -> Parser (Stmt String)
+factor tex_parse kind custom_tex = do {char '('; x <- expr tex_parse kind custom_tex; char ')'; return x }
+  <|> declared_constant
+  <|> number
+  <|> symbol kind custom_tex
+  
+expr tex_parse kind custom_tex = buildExpressionParser table (new_p kind) <?> "expression"
+  where new_p kind = tex_parse <|> (factor tex_parse kind custom_tex)
 
 table = [
-    [prefix "~" neg]
-  , [op "." (sop_gen ".") AssocRight]
-  , [op "&" (sop_gen "&") AssocLeft, op "|" (sop_gen "|") AssocLeft, op "," (sop_gen ",") AssocLeft]
-  , [op "*" (sop_gen "*") AssocLeft, op "/" (sop_gen "/") AssocLeft]
-  , [op "+" (sop_gen "+") AssocLeft, op "-" (sop_gen "-") AssocLeft]
-  , [op "?implies" (sop_gen "=>") AssocLeft, op "=" (sop_gen "=") AssocLeft]
-	, [op ":r_eq" (sop_gen "-->") AssocLeft, op "~>" (sop_gen "*->") AssocLeft] ]
+    [prefix "~" (unary_tree "~")]
+  , [op "." (func_tree ".") AssocRight]
+  , [op "&" (func_tree "&") AssocLeft, op "|" (func_tree "|") AssocLeft, op "," (func_tree ",") AssocLeft]
+  , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
+  , [op "+" (func_tree "+") AssocLeft, op "-" (func_tree "-") AssocLeft]
+  , [op "=" (func_tree "=") AssocLeft]
+  , [op ":=" (func_tree "rewrite") AssocLeft, op "~>" (func_tree "eq_rewrite") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
     prefix name fun = Prefix (do{ string name; return fun })
 
-factor ty = do { ws; char '('; ws; x <- expr ty; ws; char ')'; ws; return x }
-   <|> constant
-	 <|> variable ty
-	 <?> "statement"
+run_parse kind custom_tex = do
+	x <- recurse kind custom_tex;
+	eof;
+	return x
+	
+mytex = [("go",2),("rewrite",2)]
 
-word = many1 digit <|> many1 letter
+ex_rule = "\\rewrite{\\go{1}{1}}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}"
+ex_ruleset = "myfule{"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
+ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
+test_parse = parse (run_parse "ground" mytex) "" ex_rule
+test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset2
+test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
+test_rule = case test_parse of 
+  Right x -> Just (make_rule x)
+  _ -> Nothing
 
-variable :: String -> Parser (Stmt String)
-variable ty = do { ds <- word; return (terminal ty ds) } <?> "variable"
-constant :: Parser (Stmt String)
-constant = do {char '$'; x <- word; return (terminal "stmt" x)} <?> "constant"
-
--- For web service
-
-data ProofStmt = ProofStmt {nm :: String, stmt :: Stmt String, r_deps :: [String], a_deps :: [String]}
-  deriving (Show,Eq)
-
-r_expr = do {x <- (expr "rule"); ws; char ';'; ws; return x}
-p_expr = do {x <- (expr "stmt"); ws; char ';'; ws; return x}
-
-ruleset = do {ws; x <- digitstring; ws; char '{'; ws; d <- str; ws; y <- many r_expr; char '}'; ws; return (Ruleset x [make_rule_stmt r | r <- y] d)}
-rulesets = many ruleset
-assumption = do {w <- digitstring; char ':'; ws; x <- (expr "stmt"); char ';'; ws; return (Expr w x (Nothing,Nothing))}
-assumptions = many assumption
-
-proof_1l = do {line <- digitstring; char ':'; ws; x <- (expr "stmt"); ws; char ';'; ws; return (ProofStmt line x [] [])}
-proof_2l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; return (ProofStmt line x rules [])}
-proof_3l = do {line <- digitstring; char ':'; ws; x <- p_expr; rules <- specifier; ws; char ';'; ws; assumps <- specifier; ws; char ';'; ws; return (ProofStmt line x rules assumps)}
-
-proof = try (many proof_3l) --(sepBy proof_3l eol)
-  <|> try (many proof_2l) --(sepBy proof_2l eol)
-  <|> many proof_1l --(sepBy proof_1l eol)
-
-desc = digit <|> letter <|> char '-' <|> char '>' <|> char '<' <|> char '~' <|> char ' ' 
-  <|> char '*' <|> char '+' <|> char '=' <|> char '(' <|> char ')' <|> char '.' <|> char '&' <|> char '|' <|> char ',' <|> char '⟘'
-str = do {char '"'; x <- many desc; char '"'; return x }
-
-specifier = do {char '['; x <- req; char ']'; return x}
-req = sepBy digitstring (char ',') 
-digitstring = many (digit <|> letter)
-ws = many ((string " ") <|> eol)
-eol =   try (string "\n\r")
-    <|> try (string "\r\n")
-    <|> string "\n"
-    <|> string "\r"
-    <?> "end of line"
-
+  
