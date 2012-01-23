@@ -1,4 +1,4 @@
-module NewParse where
+module ProofParse where
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import ProofTypes

@@ -3,7 +3,7 @@ import Prelude
 import List
 import qualified Data.Map as Map
 import ProofTypes
-import NewParse
+import ProofParse
 import ProofFuncs
 
 sub_depth_level = 15 -- Search depth for subexpressions
