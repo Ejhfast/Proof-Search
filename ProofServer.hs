@@ -8,7 +8,6 @@ import System.Timeout as S
 import ProofParse
 import ProofTypes as PT
 import ProofSearch
-import Text.JSON
 import System.IO.Unsafe
 
 main :: IO ()
