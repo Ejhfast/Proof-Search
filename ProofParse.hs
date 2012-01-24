@@ -139,11 +139,11 @@ parse_assumption custom_tex = do
 parse_assumptions :: [(String, Int)] -> Parser [Expr String]
 parse_assumptions custom_tex = many1 $ parse_assumption custom_tex
 
-parse_conclusion :: [(String, Int)] -> Parser (Expr String)
+parse_conclusion :: [(String, Int)] -> Parser [(Expr String)]
 parse_conclusion custom_tex = do
   conc <- recurse "ground" custom_tex;
   eof;
-  return $ Expr "_" conc (Nothing,Nothing)
+  return $ [Expr "_" conc (Nothing,Nothing)]
   
 
 -- Primative Expressions

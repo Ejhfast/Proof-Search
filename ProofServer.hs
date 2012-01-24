@@ -35,23 +35,24 @@ check_proof = do
   conclusion <- look "conclusion"
   syntax <- look "syntax"
   let new_parse_funcs = if syntax == "" then [] else read syntax :: [(String, Int)]
-  let rs_parsed = parse (parse_rulesets new_parse_funcs) "" $ remove_ws rulesets
-  let as_parsed = parse (parse_assumptions new_parse_funcs) "" $ remove_ws assumptions
-  let conc_parsed = parse (parse_conclusion new_parse_funcs) "" $ remove_ws conclusion
-  case (rs_parsed, as_parsed, conc_parsed) of 
-    (Right r, Right a, Right c) ->
-      case frees of
-        "" -> do 
-          res <- iter 3 r [] a [c]
-          ok $ toResponse res
-        f  ->
-          let fs_parsed = parse (parse_rulesets new_parse_funcs) "" $ remove_ws frees in
-          case fs_parsed of
-            (Right f) -> do
-              res <- iter 3 r f a [c]
-              ok $ toResponse res
-            f1 -> ok $ toResponse $ "Failure: bad parse in free rulesets."++(show f1)
-    (p1,p2,p3) -> ok $ toResponse $ "Failure: bad parse in assumptions/rulesets."++(show p1)++(show p2)++(show p3)
+  let try_rulesets = maybe_parse (parse_rulesets new_parse_funcs) $ remove_ws rulesets
+  case try_rulesets of
+    Just r ->
+      let try_frees = maybe_parse (parse_rulesets new_parse_funcs) $ remove_ws frees in
+      case try_frees of
+        Just f ->
+          let try_assumps = maybe_parse (parse_assumptions new_parse_funcs) $ remove_ws assumptions in
+          case try_assumps of
+            Just a ->
+              let try_conc = maybe_parse (parse_conclusion new_parse_funcs) $ remove_ws conclusion in
+              case try_conc of
+                Just c -> do
+                  res <- iter 3 r f a c
+                  ok $ toResponse res
+                _ -> ok $ toResponse "Failure: Error parsing conclusion"
+            _ -> ok $ toResponse "Failure: Error parsing assumptions"
+        _ -> ok $ toResponse "Failure: Error parsing free rulesets"
+    _ -> ok $ toResponse "Failure: Error parsing required rulesets"
     
 check_assign :: ServerPart Response
 check_assign = do
@@ -80,3 +81,12 @@ iter depth rsets fsets assumps conc =
   case matches of
     (x:rst) -> do { return "Proved" }
     _ -> iter (depth - 1) rsets fsets fwrd back
+
+-- Test for empty string as input, otherwise parse
+maybe_parse :: (Parser [a]) -> String -> Maybe [a]
+maybe_parse parser str =
+  if str == "" then Just [] else
+    let tryit = parse parser "" str in
+    case tryit of
+      (Right res) -> Just res
+      _ -> Nothing
