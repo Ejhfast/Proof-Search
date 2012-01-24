@@ -37,19 +37,18 @@ check_proof = do
   let new_parse_funcs = if syntax == "" then [] else read syntax :: [(String, Int)]
   let rs_parsed = parse (parse_rulesets new_parse_funcs) "" $ remove_ws rulesets
   let as_parsed = parse (parse_assumptions new_parse_funcs) "" $ remove_ws assumptions
-  let conc_parsed = parse (recurse "ground" new_parse_funcs) "" $ remove_ws conclusion
+  let conc_parsed = parse (parse_conclusion new_parse_funcs) "" $ remove_ws conclusion
   case (rs_parsed, as_parsed, conc_parsed) of 
     (Right r, Right a, Right c) ->
-      let wc = (Expr "_" c (Nothing,Nothing)) in
       case frees of
         "" -> do 
-          res <- iter 3 r [] a [wc]
+          res <- iter 3 r [] a [c]
           ok $ toResponse res
         f  ->
           let fs_parsed = parse (parse_rulesets new_parse_funcs) "" $ remove_ws frees in
           case fs_parsed of
             (Right f) -> do
-              res <- iter 3 r f a [wc]
+              res <- iter 3 r f a [c]
               ok $ toResponse res
             f1 -> ok $ toResponse $ "Failure: bad parse in free rulesets."++(show f1)
     (p1,p2,p3) -> ok $ toResponse $ "Failure: bad parse in assumptions/rulesets."++(show p1)++(show p2)++(show p3)

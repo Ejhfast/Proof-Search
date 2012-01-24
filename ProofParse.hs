@@ -139,22 +139,11 @@ parse_assumption custom_tex = do
 parse_assumptions :: [(String, Int)] -> Parser [Expr String]
 parse_assumptions custom_tex = many1 $ parse_assumption custom_tex
 
-parse_proofline :: [(String, Int)] -> Parser ProofLine
-parse_proofline custom_tex = do
-  name <- get_symbol;
-  char ':';
-  conclusion <- recurse "ground" custom_tex;
-  char ';';
-  rules <- optionMaybe $ with_semi stringlist;
-  assumptions <- optionMaybe $ with_semi stringlist;
-  case (rules, assumptions) of
-    (Just r, Just a) -> return $ ProofLine name conclusion r a
-    (Just r, Nothing) -> return $ ProofLine name conclusion r []
-    (Nothing, Just a) -> return $ ProofLine name conclusion [] a
-    _ -> return $ ProofLine name conclusion [] []
-    
-parse_proof :: [(String, Int)] -> Parser [ProofLine]
-parse_proof custom_tex = many1 $ parse_proofline custom_tex
+parse_conclusion :: [(String, Int)] -> Parser (Expr String)
+parse_conclusion custom_tex = do
+  conc <- recurse "ground" custom_tex;
+  eof;
+  return $ Expr "_" conc (Nothing,Nothing)
   
 
 -- Primative Expressions
