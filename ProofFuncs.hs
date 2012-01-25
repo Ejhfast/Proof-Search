@@ -37,9 +37,6 @@ collapse_funcs stmt =
 	case stmt of
 		(Var x) -> [stmt]
 		(Free x) -> [stmt]
-		(Op op (Var x) (Var "NOP")) -> case op of
-		  "-" -> [(Var $ "-"++x)]
-		  _ -> [stmt]
 		(Op op (Var x) (Var y)) -> case op of
 			"+" -> [(math (+) "+" x y)]
 			"-" -> [(math (-) "-" x y)]
@@ -50,6 +47,21 @@ collapse_funcs stmt =
 		                [(Op op x y) | x <- (collapse_funcs lhs), y <- (collapse_funcs rhs)] ++
 		                [(Op op x rhs) | x <- (collapse_funcs lhs)] ++
 		                [(Op op lhs y) | y <- (collapse_funcs rhs)]
+
+interpret_unary :: Stmt String -> [Stmt String]                  
+interpret_unary stmt =
+  case stmt of
+    (Var x) -> [stmt]
+    (Free x) -> [stmt]
+    (Op op (Var x) (Var "NOP")) -> 
+      case op of
+       "-" -> [(Var $ "-"++x)]
+       _ -> [stmt]
+    (Op op lhs rhs) -> 
+      List.nub $
+        [(Op op x y) | x <- (interpret_unary lhs), y <- (interpret_unary rhs)] ++
+        [(Op op x rhs) | x <- (interpret_unary lhs)] ++
+        [(Op op lhs y) | y <- (interpret_unary rhs)]
 		  
 f2_expr :: Expr String -> [Expr String]
 f2_expr expr =
@@ -59,8 +71,9 @@ f2_expr expr =
 f_expr :: Expr String -> [Expr String]
 f_expr expr =
 	let stmt = (body expr) in
-	[Expr (_id expr) x (justification expr) | x <- (collapse_funcs stmt)]
+	let unary = interpret_unary stmt in
+	concat [[Expr (_id expr) x (justification expr) | x <- (collapse_funcs y)] | y <- unary]
 
 f_exprs :: [Expr String] -> [Expr String]
 f_exprs exprs =
-	foldr (++) [] [ f2_expr x | x <- exprs ]
+	foldr (++) [] [ f_expr x | x <- exprs ]
