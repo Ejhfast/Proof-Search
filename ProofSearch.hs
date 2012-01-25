@@ -100,10 +100,16 @@ apply_rulesets :: Expr String -> [Ruleset String] -> [Expr String] -> [Expr Stri
 apply_rulesets expr rulesets facts = concat [apply_ruleset expr rs facts | rs <- rulesets]
 
 apply_rulesets_stmts :: [Expr String] -> [Ruleset String] -> [Expr String]
-apply_rulesets_stmts stmts rulesets = concat [apply_rulesets s rulesets stmts | s <- stmts]
+apply_rulesets_stmts stmts rulesets = 
+  case rulesets of 
+    [] -> f_exprs stmts
+    _ -> concat [apply_rulesets s rulesets stmts | s <- stmts]
 
 back_apply_rulesets_stmts :: [Expr String] -> [Ruleset String] -> [Expr String]
-back_apply_rulesets_stmts stmts rulesets = concat [apply_rulesets s (rev_rules rulesets) stmts | s <- stmts]
+back_apply_rulesets_stmts stmts rulesets = 
+  case rulesets of
+    [] -> f_exprs stmts
+    _ -> concat [apply_rulesets s (rev_rules rulesets) stmts | s <- stmts]
 
 rev_rules :: [Ruleset String] -> [Ruleset String]
 rev_rules rsets = 
