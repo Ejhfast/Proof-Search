@@ -51,6 +51,10 @@ collapse_funcs stmt =
 		                [(Op op x rhs) | x <- (collapse_funcs lhs)] ++
 		                [(Op op lhs y) | y <- (collapse_funcs rhs)]
 		  
+f2_expr :: Expr String -> [Expr String]
+f2_expr expr =
+  let once = f_expr expr in
+  concat [f_expr x | x <- once]
 		  
 f_expr :: Expr String -> [Expr String]
 f_expr expr =
