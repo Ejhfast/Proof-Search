@@ -63,4 +63,4 @@ f_expr expr =
 
 f_exprs :: [Expr String] -> [Expr String]
 f_exprs exprs =
-	foldr (++) [] [ f_expr x | x <- exprs ]
+	foldr (++) [] [ f2_expr x | x <- exprs ]
