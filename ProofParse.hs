@@ -194,6 +194,7 @@ expr tex_parse kind custom_tex = buildExpressionParser table (new_p kind) <?> "e
 
 table = [
     [prefix "~" (unary_tree "~")]
+  , [prefix "-" (unary_tree "-")]
   , [op "." (func_tree ".") AssocRight]
   , [op "&" (func_tree "&") AssocLeft, op "|" (func_tree "|") AssocLeft, op "," (func_tree ",") AssocLeft]
   , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
