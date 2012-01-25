@@ -47,7 +47,7 @@ check_proof = do
               let try_conc = maybe_parse (parse_conclusion new_parse_funcs) $ remove_ws conclusion in
               case try_conc of
                 Just c -> do
-                  res <- iter 3 r f a c
+                  res <- iter 2 r f a c
                   ok $ toResponse res
                 _ -> ok $ toResponse "Failure: Error parsing conclusion"
             _ -> ok $ toResponse "Failure: Error parsing assumptions"
