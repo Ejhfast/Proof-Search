@@ -38,7 +38,7 @@ collapse_funcs stmt =
 		(Var x) -> [stmt]
 		(Free x) -> [stmt]
 		(Op op (Var x) (Var "NOP")) -> case op of
-		  "-" -> [(math (-) "-" "0" x)]
+		  "-" -> [(Var $ "-"++x)]
 		  _ -> [stmt]
 		(Op op (Var x) (Var y)) -> case op of
 			"+" -> [(math (+) "+" x y)]
