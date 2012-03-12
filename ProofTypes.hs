@@ -9,7 +9,7 @@ data Expr a = Expr {_id :: String, body :: Stmt a, justification :: (Maybe [Stri
 data Stmt a = Op a (Stmt a) (Stmt a) | Var a | Free a
   deriving (Show,Eq)
 -- Rules rewrite a condition into a conclusion
-data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: Kind}
+data Rule a = Rule {condition :: Stmt a, conclusion :: Stmt a, kind :: Kind, cnst :: Stmt a}
   deriving (Show, Eq)
 -- Rules can be strict rewrites, equalities, or notions of fact combination
 data Kind = Equality | Strict | Unconditional deriving (Show,Eq)

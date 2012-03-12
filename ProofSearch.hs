@@ -36,33 +36,36 @@ match stmt rule =
         Free s1 -> false_mapping --should not a Free in statements
 
 -- match rules with two conditions
-multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> [Expr String]
-multi_match cond conc stmt facts expr_deps r_deps = case cond of
+multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> Stmt String -> [Expr String]
+multi_match cond conc stmt facts expr_deps r_deps cons = case cond of
   (Op "," a b) -> case (match stmt a) of
     [(Var "FALSE",Free "T"),(Var "TRUE",Free "T")] -> []
     l_subs -> let r_sub_lst = filter (\(f,d)-> ((f /= false_mapping) && (consistent_subs l_subs f))) [(match (body x) b,(deps x)) | x <- facts] in
-      [Expr "_" (replace_terms conc (l_subs ++ r_subs)) (Just r_deps, Just (merge_deps expr_deps d)) | (r_subs, d) <- r_sub_lst ]
+      [Expr "_" (replace_terms conc (l_subs ++ r_subs) cons) (Just r_deps, Just (merge_deps expr_deps d)) | (r_subs, d) <- r_sub_lst ]
+
+meet_constraint :: Stmt String -> Stmt String -> Bool
+meet_constraint free_v cons = True
 
 --Replace free variables in a statement as specified in provided mapping
-replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> Stmt String
-replace_terms rule lst =
+replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> Stmt String -> Stmt String
+replace_terms rule lst cons =
   case rule of
     Var r1 -> Var r1
     Free r1 -> let search = List.find (\((e,f)) -> r1 == val f) lst in
       case search of
-        Just (e,f) -> e
+        Just (e,f) -> if meet_constraint e cons then e else Free r1
         Nothing -> Free r1
     (Op ro r1 r2) ->
-      (Op ro (replace_terms r1 lst) (replace_terms r2 lst))
+      (Op ro (replace_terms r1 lst cons) (replace_terms r2 lst cons))
 
 -- Expand free variables, maintaining consistancy (e.g. for each possible expansion, "A" mapped everywhere to same value)
-expand :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> [Expr String]
-expand conclusion facts ruleset_name expr_deps r_deps =
+expand :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> Stmt String -> [Expr String]
+expand conclusion facts ruleset_name expr_deps r_deps cons =
   let frees = get_free_vars conclusion in
   let all_combs = List.map (\e -> [[(y,e)] | y <- facts]) frees in
   let replacements = rec_combine all_combs in -- Generate all possible mappings
   if replacements == [] then [Expr "_" conclusion (Just ([ruleset_name]++r_deps),(Just expr_deps))] else
-    [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m)) 
+    [(Expr "_" (replace_terms conclusion (map (\(e,sf) -> (body e, sf)) m) cons) 
              (Just ([ruleset_name]++r_deps), Just (merge_deps expr_deps (subs_deps m)))) | m <- replacements]
 
 -- Apply a single rule to statement and get new list of known statements
@@ -71,9 +74,10 @@ apply_rule 0 _ _ _ _ _ _ = []
 apply_rule depth stmt rule facts ruleset_name expr_deps r_deps =
   let (cond,conc) = (condition rule, conclusion rule) in
   let try_match = (match stmt cond) in
-  let top_level_match = if try_match == false_mapping then [] else expand (replace_terms conc try_match) facts ruleset_name expr_deps r_deps in
+  let cons = (cnst rule) in
+  let top_level_match = if try_match == false_mapping then [] else expand (replace_terms conc try_match cons) facts ruleset_name expr_deps r_deps cons in
   case cond of
-    (Op "," _ _) -> multi_match cond conc stmt facts expr_deps (ruleset_name:r_deps)
+    (Op "," _ _) -> multi_match cond conc stmt facts expr_deps (ruleset_name:r_deps) cons
     otherwise ->
       case (kind rule) of
         Equality -> -- with equality, recursive
@@ -113,4 +117,4 @@ back_apply_rulesets_stmts stmts rulesets =
 
 rev_rules :: [Ruleset String] -> [Ruleset String]
 rev_rules rsets = 
-  map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r)) $ set rs)) rsets
+  map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r) (cnst r)) $ set rs)) rsets

@@ -32,35 +32,13 @@ func_tree op a b = Op op a b
 unary_tree :: String -> Stmt String -> Stmt String
 unary_tree op a = Op op a (Var "NOP")
 
-make_rule :: Stmt String -> Rule String
-make_rule stmt =
+make_rule :: Stmt String -> Stmt String -> Rule String
+make_rule stmt cons =
   case stmt of
-    (Op "eq_rewrite" a b) -> Rule a b Equality
-    (Op "rewrite" a b) -> Rule a b Strict
-    _ -> Rule (Var "NOP") (Var "NOP") Strict -- fail...
-
-make_rule_str str custom_tex =
-	let try = parse (recurse "free" custom_tex) "" str in
-	case try of
-		(Right x) -> make_rule x
-		_ -> Rule (Var "NOP") (Var "NOP") Strict
-		
-make_stmt_str str custom_tex =
-	let try = parse (recurse "ground" custom_tex) "" str in
-	case try of
-		(Right x) ->  x
-		_ -> Var "NOP"
-
-
+    (Op "eq_rewrite" a b) -> Rule a b Equality cons
+    (Op "rewrite" a b) -> Rule a b Strict cons
+    _ -> Rule (Var "NOP") (Var "NOP") Strict (Var "NOP") -- fail...
     
-do_parse_rule :: String -> [(String, Int)] -> Rule String
-do_parse_rule str custom_tex =
-  let stmt = parse (run_parse "free" custom_tex) "" $ remove_ws str in
-  case stmt of
-    Right a -> make_rule a
-    _ -> Rule (Free "A") (Free "A") Strict -- fail...
-    
-
 -- Tex infastructure
 
 parse_tex_command :: String -> Int -> Parser (Stmt String) -> Parser (Stmt String)
@@ -85,6 +63,10 @@ underscore parse_rest =
 carrot :: Parser (Stmt String) -> Parser (Stmt String)
 carrot parse_rest =
   do { string "^{"; x <- parse_rest; char '}'; return x}
+  
+constraint :: Parser (Stmt String) -> Parser (Stmt String)
+constraint parse_rest =
+  do { string "_["; bound <- get_symbol; string "::"; x <- parse_rest; char ']'; return $ Op "CONSTRAINT" (Var bound) x}
   
 modifiers :: Parser (Stmt String) -> Parser (Stmt String)
 modifiers parse_rest = do
@@ -115,7 +97,10 @@ all_funcs kind custom_tex = tryall [x $ recurse kind custom_tex | x <- create_co
 parse_rule :: [(String, Int)] -> Parser (Rule String)
 parse_rule custom_tex = do
   x <- recurse "free" custom_tex; -- A rule is just a certain type of statement in the language
-  return $ make_rule x
+  c <- optionMaybe $ constraint (recurse "ground" custom_tex);
+  case c of
+    Just cst -> return $ make_rule x cst
+    _ -> return $ make_rule x (Var "NOP")
 
 parse_ruleset :: [(String, Int)] -> Parser (Ruleset String)
 parse_ruleset custom_tex = do
@@ -213,14 +198,11 @@ run_parse kind custom_tex = do
 	
 mytex = [("go",2),("rewrite",2)]
 
-ex_rule = "\\rewrite{\\go{1}{1}}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}"
+ex_rule = "\\rewrite{X}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}_[X::(X=2)]"
 ex_ruleset = "myfule{"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
 ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
-test_parse = parse (run_parse "ground" mytex) "" ex_rule
+test_parse = parse (parse_rule mytex) "" ex_rule
 test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset2
 test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
-test_rule = case test_parse of 
-  Right x -> Just (make_rule x)
-  _ -> Nothing
 
   
