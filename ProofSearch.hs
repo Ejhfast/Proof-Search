@@ -36,30 +36,59 @@ match stmt rule =
         Free s1 -> false_mapping --should not a Free in statements
 
 -- match rules with two conditions
-multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> Stmt String -> [Expr String]
+multi_match :: Stmt String -> Stmt String -> Stmt String -> [Expr String] -> [String] -> [String] -> [Stmt String] -> [Expr String]
 multi_match cond conc stmt facts expr_deps r_deps cons = case cond of
   (Op "," a b) -> case (match stmt a) of
     [(Var "FALSE",Free "T"),(Var "TRUE",Free "T")] -> []
     l_subs -> let r_sub_lst = filter (\(f,d)-> ((f /= false_mapping) && (consistent_subs l_subs f))) [(match (body x) b,(deps x)) | x <- facts] in
       [Expr "_" (replace_terms conc (l_subs ++ r_subs) cons) (Just r_deps, Just (merge_deps expr_deps d)) | (r_subs, d) <- r_sub_lst ]
 
-meet_constraint :: Stmt String -> Stmt String -> Bool
-meet_constraint free_v cons = True
+find_constraint :: String -> Stmt String -> Bool
+find_constraint free cons =
+  case cons of
+    Op "CONSTRAINT" (Var s) c -> (s == free)
+    _ -> False
+
+meet_constraint :: String -> Stmt String -> [Stmt String] -> Bool
+meet_constraint free_nm try_mat cons = 
+  let match = List.find (find_constraint free_nm) cons in
+  case try_mat of
+    Var p_mat ->
+      case match of 
+        Just (Op "CONSTRAINT" (Var n) c) ->
+          let t1 = (reads p_mat :: [(Int,String)]) in
+          case t1 of
+            [(int1,_)] ->
+              case c of
+                Op "=" (Var m) (Var n) ->
+                  let t2 = (reads p_mat :: [(Int,String)]) in
+                    case t2 of
+                      [(int2,_)] -> if (m == n) && (int1 == int2) then True else False
+                      _ -> True
+                Op "!=" (Var m) (Var n) ->
+                  let t2 = (reads p_mat :: [(Int,String)]) in
+                    case t2 of
+                      [(int2,_)] -> if (m == n) && (int1 /= int2) then True else False
+                      _ -> True
+                _ -> True
+            _ -> True
+        _ -> True
+    _ -> True -- too complicated for now ;)
 
 --Replace free variables in a statement as specified in provided mapping
-replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> Stmt String -> Stmt String
+replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> [Stmt String] -> Stmt String
 replace_terms rule lst cons =
   case rule of
     Var r1 -> Var r1
     Free r1 -> let search = List.find (\((e,f)) -> r1 == val f) lst in
       case search of
-        Just (e,f) -> if meet_constraint e cons then e else Free r1
+        Just (e,f) -> if meet_constraint r1 e cons then e else Free r1
         Nothing -> Free r1
     (Op ro r1 r2) ->
       (Op ro (replace_terms r1 lst cons) (replace_terms r2 lst cons))
 
 -- Expand free variables, maintaining consistancy (e.g. for each possible expansion, "A" mapped everywhere to same value)
-expand :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> Stmt String -> [Expr String]
+expand :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> [Stmt String] -> [Expr String]
 expand conclusion facts ruleset_name expr_deps r_deps cons =
   let frees = get_free_vars conclusion in
   let all_combs = List.map (\e -> [[(y,e)] | y <- facts]) frees in

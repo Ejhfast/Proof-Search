@@ -32,12 +32,12 @@ func_tree op a b = Op op a b
 unary_tree :: String -> Stmt String -> Stmt String
 unary_tree op a = Op op a (Var "NOP")
 
-make_rule :: Stmt String -> Stmt String -> Rule String
+make_rule :: Stmt String -> [Stmt String] -> Rule String
 make_rule stmt cons =
   case stmt of
     (Op "eq_rewrite" a b) -> Rule a b Equality cons
     (Op "rewrite" a b) -> Rule a b Strict cons
-    _ -> Rule (Var "NOP") (Var "NOP") Strict (Var "NOP") -- fail...
+    _ -> Rule (Var "NOP") (Var "NOP") Strict [] -- fail...
     
 -- Tex infastructure
 
@@ -63,10 +63,14 @@ underscore parse_rest =
 carrot :: Parser (Stmt String) -> Parser (Stmt String)
 carrot parse_rest =
   do { string "^{"; x <- parse_rest; char '}'; return x}
-  
+
 constraint :: Parser (Stmt String) -> Parser (Stmt String)
-constraint parse_rest =
-  do { string "_["; bound <- get_symbol; string "::"; x <- parse_rest; char ']'; return $ Op "CONSTRAINT" (Var bound) x}
+constraint parse_rest = 
+  do { bound <- get_symbol; string "::"; x <- parse_rest; return $ Op "CONSTRAINT" (Var bound) x }
+
+constraints :: Parser (Stmt String) -> Parser ([Stmt String])
+constraints parse_rest =
+  do { string "_["; constraint_list <- sepBy (constraint parse_rest) (char ';'); char ']'; return $ constraint_list }
   
 modifiers :: Parser (Stmt String) -> Parser (Stmt String)
 modifiers parse_rest = do
@@ -97,10 +101,10 @@ all_funcs kind custom_tex = tryall [x $ recurse kind custom_tex | x <- create_co
 parse_rule :: [(String, Int)] -> Parser (Rule String)
 parse_rule custom_tex = do
   x <- recurse "free" custom_tex; -- A rule is just a certain type of statement in the language
-  c <- optionMaybe $ constraint (recurse "ground" custom_tex);
+  c <- optionMaybe $ constraints (recurse "ground" custom_tex);
   case c of
     Just cst -> return $ make_rule x cst
-    _ -> return $ make_rule x (Var "NOP")
+    _ -> return $ make_rule x []
 
 parse_ruleset :: [(String, Int)] -> Parser (Ruleset String)
 parse_ruleset custom_tex = do
@@ -186,6 +190,7 @@ table = [
   , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
   , [op "+" (func_tree "+") AssocLeft, op "-" (func_tree "-") AssocLeft]
   , [op "=" (func_tree "=") AssocLeft]
+  , [op "!=" (func_tree "!=") AssocLeft]
   , [op ":=" (func_tree "rewrite") AssocLeft, op "~>" (func_tree "eq_rewrite") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
@@ -198,7 +203,7 @@ run_parse kind custom_tex = do
 	
 mytex = [("go",2),("rewrite",2)]
 
-ex_rule = "\\rewrite{X}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}_[X::(X=2)]"
+ex_rule = "\\rewrite{X}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}_[X::(X=2);Y::(Y!=2)]"
 ex_ruleset = "myfule{"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
 ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
 test_parse = parse (parse_rule mytex) "" ex_rule
