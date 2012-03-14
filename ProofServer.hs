@@ -14,7 +14,6 @@ import System.IO.Unsafe
 
 runConf port = Conf port Nothing (logAccess nullConf) 2
 
-
 main :: IO ()
 main = do
   args <- getArgs
