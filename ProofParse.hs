@@ -209,5 +209,6 @@ ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
 test_parse = parse (parse_rule mytex) "" ex_rule
 test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset2
 test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
+cond_ruleset = "TestRule{(X+Y+Z~>Z+X+Y)_[Z::(Z=1)];}"
 
   

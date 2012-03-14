@@ -4,6 +4,7 @@ import Happstack.Server
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import List
+import Debug.Trace
 import System.Timeout as S
 import ProofParse
 import ProofTypes as PT
@@ -78,7 +79,7 @@ iter depth rsets fsets assumps conc =
   let fwrd = (++) assumps $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
   let expand_fwrd = (++) fwrd $ apply_rulesets_stmts fwrd rsets in -- Generate one layer forward from assumptions
   let matches = [(x,y) | x <- expand_fwrd, y <- expand_back, (PT.body x) == (PT.body y)] in
-  case matches of
+  case Debug.Trace.trace ("matches: "++ (show matches)) matches of
     (x:rst) -> do { return "Proved" }
     _ -> iter (depth - 1) rsets fsets fwrd back
 
