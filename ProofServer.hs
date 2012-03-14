@@ -1,6 +1,7 @@
 module Main where
 import Control.Monad (msum)
 import Happstack.Server
+import System.Environment
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import List
@@ -11,8 +12,14 @@ import ProofTypes as PT
 import ProofSearch
 import System.IO.Unsafe
 
+runConf port = Conf port Nothing (logAccess nullConf) 2
+
+
 main :: IO ()
-main = simpleHTTP nullConf $ app
+main = do
+  args <- getArgs
+  let port = read (head args) :: Int
+  simpleHTTP (runConf port) $ app
 
 app :: ServerPart Response
 app = do 
