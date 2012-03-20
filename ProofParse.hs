@@ -185,6 +185,8 @@ expr tex_parse kind custom_tex = buildExpressionParser table (new_p kind) <?> "e
 table = [
     [prefix "~" (unary_tree "~")]
   , [prefix "-" (unary_tree "-")]
+  , [prefix "=" (unary_tree "__CNTS")]
+  , [prefix "!" (unary_tree "__NOT_CNTS")]
   , [op "." (func_tree ".") AssocRight]
   , [op "&" (func_tree "&") AssocLeft, op "|" (func_tree "|") AssocLeft, op "," (func_tree ",") AssocLeft]
   , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
@@ -203,12 +205,13 @@ run_parse kind custom_tex = do
 	
 mytex = [("go",2),("rewrite",2)]
 
-ex_rule = "\\rewrite{X}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}_[X::(X=2);Y::(Y!=2)]"
+ex_rule = "\\rewrite{X}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}_[X::(!A);Y::(Y!=2)]"
 ex_ruleset = "myfule{"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
 ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
 test_parse = parse (parse_rule mytex) "" ex_rule
 test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset2
 test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
-cond_ruleset = "TestRule{(X+Y+Z~>Z+X+Y)_[Z::(Z=1)];}"
+cond_ruleset = "TestRule{(X+Y+Z~>Z+X+Y)_[Z::(Z=1);Y::(!T)];}"
+test_cond = parse (parse_ruleset mytex) "" cond_ruleset
 
   

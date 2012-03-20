@@ -55,26 +55,22 @@ meet_constraint free_nm try_mat cons =
   let match = List.find (find_constraint free_nm) cons in
   case try_mat of
     Var p_mat ->
-      case match of 
-        Just (Op "CONSTRAINT" (Var n) c) ->
-          let t1 = (reads p_mat :: [(Int,String)]) in
-          case t1 of
-            [(int1,_)] ->
-              case c of
-                Op "=" (Var m) (Var l) ->
-                  let t2 = (reads l :: [(Int,String)]) in
-                    case t2 of
-                      [(int2,_)] -> if (m == n) && (int1 == int2) then True else False
-                      _ -> True
-                Op "!=" (Var m) (Var l) ->
-                  let t2 = (reads l :: [(Int,String)]) in
-                    case t2 of
-                      [(int2,_)] -> if (m == n) && (int1 /= int2) then True else False
-                      _ -> True
-                _ -> True
-            _ -> True
+      case match of
+        Just (Op "CONSTRAINT" (Var n) (Op "__CNTS" x (Var "NOP"))) -> contains_var x (Var p_mat)
+        Just (Op "CONSTRAINT" (Var n) (Op "__NOT_CNTS" x (Var "NOP"))) -> Debug.Trace.trace (show (not (contains_var x (Var p_mat)))) (not (contains_var x (Var p_mat)))
         _ -> True
-    _ -> True -- too complicated for now ;)
+    stmt ->
+      case match of
+        Just (Op "CONSTRAINT" (Var n) (Op "__CNTS" x (Var "NOP"))) -> contains_var x stmt
+        Just (Op "CONSTRAINT" (Var n) (Op "__NOT_CNTS" x (Var "NOP"))) -> Debug.Trace.trace (show (not (contains_var x stmt))) (not (contains_var x stmt))
+        _ -> True
+    
+contains_var :: Stmt String -> Stmt String -> Bool
+contains_var sub_expr expr =
+  case (Debug.Trace.trace ("Expr: " ++ (show expr) ++ "\nSubExpr: " ++ (show sub_expr)) expr) of
+    Var x -> sub_expr == expr
+    Free x -> sub_expr == expr
+    Op o x y -> (contains_var sub_expr x) || (contains_var sub_expr y)
 
 --Replace free variables in a statement as specified in provided mapping
 replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> [Stmt String] -> Stmt String
