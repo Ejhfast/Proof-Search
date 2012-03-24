@@ -18,7 +18,7 @@ str_to_lst stmt =
     (Op "." x y) -> (str_to_lst x) ++ (str_to_lst y)
     Var x -> [Var x]
     Free y -> [Free y]
-    _ -> []
+    other -> [other]
     
 lst_to_stmt :: [Stmt String] -> Stmt String
 lst_to_stmt x = 
