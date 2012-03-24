@@ -21,6 +21,7 @@ remove_ws = filter (\s -> s /= ' ' && s /= '\n')
 
 -- Turn argument list into binary tree
 argument_tree :: [Stmt String] -> Stmt String
+argument_tree [] = Op "ARGS" (Var "NOP") (Var "NOP")
 argument_tree (x:xs) =
   case xs of
     [] -> Op "ARGS" x (Var "NOP")
