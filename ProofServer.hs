@@ -75,15 +75,25 @@ check_assign = do
   case (rs_parsed, as_parsed, g_parsed) of 
     (Right r, Right a, Right go) -> ok $ toResponse $ "Success: Parsed assignment."
     (p1,p2,p3) -> ok $ toResponse $ "Failure: bad parse in assumptions/rulesets."++(show p1)++(show p2)++(show p3)
-  
+
+
+aps a s =
+  case (unsafePerformIO $ S.timeout 500000  $ do { return $ apply_rulesets_stmts a s }) of
+    Just x -> x
+    _ -> []
+    
+baps a s =
+  case (unsafePerformIO $ S.timeout 500000 (do { return $ back_apply_rulesets_stmts a s })) of
+    Just x -> x
+    _ -> []
 
 iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> ServerPartT IO String
 iter 0 _ _ _ _ = do { return $ "Failed to prove." }
 iter depth rsets fsets assumps conc =
-  let back = (++) conc $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
-  let expand_back = (++) back $ back_apply_rulesets_stmts back rsets in -- Generate one layer back from conclusion
-  let fwrd = (++) assumps $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
-  let expand_fwrd = (++) fwrd $ apply_rulesets_stmts fwrd rsets in -- Generate one layer forward from assumptions
+  let back = (++) conc $ baps conc fsets in -- Look backward once with frees
+  let expand_back = (++) back $ baps back rsets in -- Generate one layer back from conclusion
+  let fwrd = (++) assumps $ aps assumps fsets in -- Look forward with frees
+  let expand_fwrd = (++) fwrd $ aps fwrd rsets in -- Generate one layer forward from assumptions
   let matches = [(x,y) | x <- expand_fwrd, y <- expand_back, (PT.body x) == (PT.body y)] in
   case matches of
     (x:rst) -> do { return "Proved" }
