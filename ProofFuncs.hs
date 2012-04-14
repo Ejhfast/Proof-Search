@@ -42,7 +42,7 @@ collapse_funcs stmt =
 			"-" -> [(math (-) "-" x y)]
 			"*" -> [(math (*) "*" x y)]
 			_ -> [stmt]
-		(Op "." x y) -> [string_order stmt, stmt]
+		--(Op "." x y) -> [string_order stmt, stmt]
 		(Op op lhs rhs) -> List.nub $ 
 		                [(Op op x y) | x <- (collapse_funcs lhs), y <- (collapse_funcs rhs)] ++
 		                [(Op op x rhs) | x <- (collapse_funcs lhs)] ++

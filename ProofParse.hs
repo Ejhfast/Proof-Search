@@ -188,12 +188,12 @@ table = [
   , [prefix "-" (unary_tree "-")]
   , [prefix "=" (unary_tree "__CNTS")]
   , [prefix "!" (unary_tree "__NOT_CNTS")]
-  , [op "." (func_tree ".") AssocRight]
   , [op "&" (func_tree "&") AssocLeft, op "|" (func_tree "|") AssocLeft, op "," (func_tree ",") AssocLeft]
   , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
   , [op "+" (func_tree "+") AssocLeft, op "-" (func_tree "-") AssocLeft]
   , [op "=" (func_tree "=") AssocLeft]
   , [op "!=" (func_tree "!=") AssocLeft]
+  , [op "." (func_tree ".") AssocLeft]
   , [op ":=" (func_tree "rewrite") AssocLeft, op "~>" (func_tree "eq_rewrite") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
