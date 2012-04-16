@@ -47,8 +47,7 @@ parse_tex_command command args parse_rest = do
 	c <- string $ "\\" ++ command
 	m <- modifiers parse_rest
 	get_args <- count args $ arg_parse parse_rest
-	if (length get_args) == 0 then return $ Op command (Op "ARGS" (Var "__EMPTY__") (Var "__EMPTY__")) m 
-	  else return $ Op command (argument_tree get_args) m
+	return $ Op command (argument_tree get_args) m
 	
 create_commands :: [(String, Int)] -> [(Parser (Stmt String) -> Parser (Stmt String))]
 create_commands lst = 
@@ -93,7 +92,7 @@ tryall ps = foldr (\x -> (<|> (try x))) mzero ps
 -- Main calls here to parse out baby latex expressions
 
 recurse :: String -> [(String, Int)] -> Parser (Stmt String)
-recurse kind custom_tex = try (all_funcs kind custom_tex) <|> (expr (all_funcs kind custom_tex) kind custom_tex)
+recurse kind custom_tex = try (expr (all_funcs kind custom_tex) kind custom_tex) <|> all_funcs kind custom_tex
 
 all_funcs :: String -> [(String, Int)] -> Parser (Stmt String)
 all_funcs kind custom_tex = tryall [x $ recurse kind custom_tex | x <- create_commands custom_tex]--[go,lala,cond,prob,norm,phi]]
