@@ -13,7 +13,7 @@ import ProofFuncs
 import ProofSearch
 import System.IO.Unsafe
 
-runConf port = Conf port Nothing (logAccess nullConf) 100
+runConf port = Conf port Nothing (logAccess nullConf) 5
 
 main :: IO ()
 main = do
