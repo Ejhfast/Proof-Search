@@ -9,6 +9,7 @@ import Debug.Trace
 import System.Timeout as S
 import ProofParse
 import ProofTypes as PT
+import ProofFuncs
 import ProofSearch
 import System.IO.Unsafe
 
@@ -90,9 +91,9 @@ baps a s =
 iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> ServerPartT IO String
 iter 0 _ _ _ _ = do { return $ "Failed to prove." }
 iter depth rsets fsets assumps conc =
-  let back = (++) conc $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
+  let back = (++) (f_exprs conc) $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
   let expand_back = (++) back $ back_apply_rulesets_stmts back rsets in -- Generate one layer back from conclusion
-  let fwrd = (++) assumps $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
+  let fwrd = (++) (f_exprs assumps) $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
   let expand_fwrd = (++) fwrd $ apply_rulesets_stmts fwrd rsets in -- Generate one layer forward from assumptions
   let matches = [(x,y) | x <- expand_fwrd, y <- expand_back, (PT.body x) == (PT.body y)] in
   case matches of

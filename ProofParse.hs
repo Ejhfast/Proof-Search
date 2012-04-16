@@ -47,7 +47,8 @@ parse_tex_command command args parse_rest = do
 	c <- string $ "\\" ++ command
 	m <- modifiers parse_rest
 	get_args <- count args $ arg_parse parse_rest
-	return $ Op command (argument_tree get_args) m
+	if (length get_args) == 0 then return $ Op command (Op "ARGS" (Var "__EMPTY__") (Var "__EMPTY__")) m 
+	  else return $ Op command (argument_tree get_args) m
 	
 create_commands :: [(String, Int)] -> [(Parser (Stmt String) -> Parser (Stmt String))]
 create_commands lst = 
@@ -92,7 +93,7 @@ tryall ps = foldr (\x -> (<|> (try x))) mzero ps
 -- Main calls here to parse out baby latex expressions
 
 recurse :: String -> [(String, Int)] -> Parser (Stmt String)
-recurse kind custom_tex = try (expr (all_funcs kind custom_tex) kind custom_tex) <|> all_funcs kind custom_tex
+recurse kind custom_tex = try (all_funcs kind custom_tex) <|> (expr (all_funcs kind custom_tex) kind custom_tex)
 
 all_funcs :: String -> [(String, Int)] -> Parser (Stmt String)
 all_funcs kind custom_tex = tryall [x $ recurse kind custom_tex | x <- create_commands custom_tex]--[go,lala,cond,prob,norm,phi]]
@@ -188,12 +189,12 @@ table = [
   , [prefix "-" (unary_tree "-")]
   , [prefix "=" (unary_tree "__CNTS")]
   , [prefix "!" (unary_tree "__NOT_CNTS")]
+  , [op "." (func_tree ".") AssocLeft]
   , [op "&" (func_tree "&") AssocLeft, op "|" (func_tree "|") AssocLeft, op "," (func_tree ",") AssocLeft]
   , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
   , [op "+" (func_tree "+") AssocLeft, op "-" (func_tree "-") AssocLeft]
   , [op "=" (func_tree "=") AssocLeft]
   , [op "!=" (func_tree "!=") AssocLeft]
-  , [op "." (func_tree ".") AssocLeft]
   , [op ":=" (func_tree "rewrite") AssocLeft, op "~>" (func_tree "eq_rewrite") AssocLeft] ]
   where
     op s f assoc = Infix (do { string s; return f }) assoc
@@ -204,15 +205,13 @@ run_parse kind custom_tex = do
 	eof;
 	return x
 	
-mytex = [("go",2),("rewrite",2)]
+mytex = [("go",2),("rewrite",2),("star",1),("e",0)]
 
-ex_rule = "\\rewrite{X}{\\go{0}{0}+\\go{A_{1}^{2}}{0}}_[X::(!A);Y::(Y!=2)]"
+ex_rule = "\\rewrite{X}{a.a.(\\star{a}+a).b.(\\star{b}+c).b}"
 ex_ruleset = "myfule{"++ex_rule++";"++ex_rule++";"++ex_rule++"}"
 ex_ruleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
 test_parse = parse (parse_rule mytex) "" ex_rule
 test_ruleset = parse (parse_ruleset mytex) "" $ ex_ruleset2
 test_rulesets = parse (parse_rulesets mytex) "" $ ex_ruleset++ex_ruleset++ex_ruleset
 cond_ruleset = "TestRule{(X+Y+Z~>Z+X+Y)_[Z::(Z=1);Y::(!T)];}"
-test_cond = parse (parse_ruleset mytex) "" cond_ruleset
-
-  
+test_cond = parse (parse_ruleset mytex) "" cond_ruleset  
