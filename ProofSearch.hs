@@ -21,7 +21,7 @@ match :: Stmt String -> Stmt String -> [Stmt String] -> [(Stmt String, Stmt Stri
 match stmt rule cons =
   case rule of
     Free r1 -> if (meet_constraint r1 stmt cons) then [(stmt,rule)] else false_mapping
-    Var "NOP" -> if stmt == (Var "NOP") then [((Var "NOP"),(Var "NOP"))] else false_mapping --hack for unary operations
+    Var "NOP" -> if stmt == (Var "NOP") then [] else false_mapping --hack for unary operations
     Var r1 -> if stmt == (Var r1) then [] else false_mapping
     (Op ro r1 r2) ->
       case stmt of
