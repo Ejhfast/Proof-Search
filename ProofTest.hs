@@ -6,8 +6,37 @@ import ProofTypes
 import ProofFuncs
 import System.Timeout
 import Control.Monad
+import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec.Expr
 
-forward_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> Maybe String
+{-
+iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> IO String
+iter 0 _ _ _ _ = do { return $ "Failed to prove." }
+iter depth rsets fsets assumps conc =
+  let back = (++) conc $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
+  let expand_back = (++) back $ back_apply_rulesets_stmts back rsets in -- Generate one layer back from conclusion
+  let fwrd = (++) assumps $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
+  let expand_fwrd = (++) fwrd $ apply_rulesets_stmts fwrd rsets in -- Generate one layer forward from assumptions
+  let matches = [(x,y) | x <- expand_fwrd, y <- expand_back, (ProofTypes.body x) == (ProofTypes.body y)] in
+  case matches of
+    (x:rst) -> do { return "Proved" }
+    _ -> iter (depth - 1) rsets fsets fwrd back
+-}
+
+iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> IO (Maybe String)
+iter 0 _ _ _ _ = do { return $ "Failed to prove." }
+iter depth rsets fsets assumps conc =
+  let back = (++) conc $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
+  let expand_back = (++) back $ back_apply_rulesets_stmts back rsets in -- Generate one layer back from conclusion
+  let fwrd = (++) assumps $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
+  let expand_fwrd = (++) fwrd $ apply_rulesets_stmts fwrd rsets in -- Generate one layer forward from assumptions
+  let matches = [(x,y) | x <- expand_fwrd, y <- expand_back, (ProofTypes.body x) == (ProofTypes.body y)] in
+  case matches of
+    (x:rst) -> do { return "Proved" }
+    _ -> iter (depth - 1) rsets fsets fwrd back
+
+
+{-forward_search :: Int -> Stmt String -> [Expr String] -> [Ruleset String] -> [Expr String] -> Maybe String
 forward_search 0 _ _ _ stmts = Nothing
 forward_search depth start toprove rulesets stmts = 
   let update = stmts ++ apply_rulesets_stmts stmts rulesets in
@@ -15,11 +44,14 @@ forward_search depth start toprove rulesets stmts =
   case res of 
     (x:rst) -> Just (show_expr x)
     _ -> forward_search (depth - 1) start toprove rulesets $ List.nub update
+-}
     
-verify :: Int -> Stmt String -> [Ruleset String] -> [Expr String] -> IO (Maybe String)
+verify :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO (Maybe String)
+--verify :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO String
 verify depth stmt rulesets assumps =
-  let equiv = backward_search 1 (Expr "_" stmt (Nothing,Nothing)) assumps rulesets in -- find things equivalent to the goal
-  do {return $ forward_search depth stmt equiv rulesets assumps }
+  iter depth rulesets [] assumps stmt
+--  let equiv = backward_search 1 (Expr "_" stmt (Nothing,Nothing)) assumps rulesets in -- find things equivalent to the goal
+--  do {return $ forward_search depth stmt equiv rulesets assumps }
 
 run_test to_prove rulesets stmts = do
   res <- verify 4 to_prove rulesets stmts
@@ -33,15 +65,28 @@ time_test to_prove rulesets stmts = do
     (Just x) -> return x
     Nothing -> return "failed"
 
+make_rulesets rulesets =
+  parse (parse_rulesets []) "" rulesets
+
+make_assumptions assumps =
+  parse (parse_assumptions []) "" assumps
+
+make_conc conc = do
+  res <- parse (parse_conclusion []) "" conc
+  case res of
+    (Just res) -> return res
+
 test1 =
-  let r1 = make_ruleset "Neg" ["~(~A)-->A","(A,B)~>A&B"] "" in
-  let r2 = make_ruleset "TP" ["A,(A=>B)~>B"] "" in
-  let s1 = make_expr "A1" "~(~Z)=>F" in
-  let s2 = make_expr "A2" "F=>D" in
-  let s3 = make_expr "A3" "Z" in
-  let to_prove = make_stmt "Z&(Z=>F)" in
-  time_test to_prove [r1,r2] [s1,s2,s3]
-   
+  let r1 = "Neg{~(~A):=A;(A,B)~>A&B;}" in
+  let r2 = "TP{A,(A=>B)~>B;}" in
+  let s1 = "A1:~(~Z)=>F;" in
+  let s2 = "A2:F=>D;" in
+  let s3 = "A3:Z;" in
+  let to_prove = "Z&(Z=>F)" in
+  time_test (make_conc to_prove) (make_rulesets r1++r2) (make_assumptions s1++s2++s3)
+
+  
+  {-
 test2 =
   let r2 = make_ruleset "DL" ["~(A&B)-->~A|~B","~(A|B)-->~A&~B"] ""  in
   let r3 = make_ruleset "TP" ["A,(A=>B)~>B","(A=>B),(B=>C)~>(A=>C)"] ""  in
@@ -172,4 +217,4 @@ bad3 =
 
 
 run_good = mapM (\f -> (f)) [test1,test2,test3,test4,test5,test6,test7,test8,test9,test10,test11,test12,test13,test14]
-run_bad = mapM (\f -> (f)) [bad1,bad2,bad3]
+run_bad = mapM (\f -> (f)) [bad1,bad2,bad3]-}
