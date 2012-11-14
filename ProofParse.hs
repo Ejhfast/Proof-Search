@@ -3,9 +3,9 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import ProofTypes
 import ProofFuncs
-import Data.String.Utils as Data
+--import Data.String.Utils as Data
 import Control.Monad
-import List
+import Data.List
 
 -- Define Proof Data Types
 

@@ -1,5 +1,5 @@
 module ProofTest where
-import List  
+import Data.List  
 import ProofSearch
 import ProofParse
 import ProofTypes
@@ -43,7 +43,7 @@ forward_search depth start toprove rulesets stmts =
   let res = [Expr "_" start (Just ((rule_deps x)++(rule_deps y)), Just (merge_deps (deps x) (deps y))) | (x,y) <- (contains toprove update)] in
   case res of 
     (x:rst) -> Just (show_expr x)
-    _ -> forward_search (depth - 1) start toprove rulesets $ List.nub update
+    _ -> forward_search (depth - 1) start toprove rulesets $ nub update
 -}
     
 verify :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO (Maybe String)

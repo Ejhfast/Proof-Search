@@ -1,6 +1,6 @@
 module ProofSearch where
 import Prelude
-import List
+import Data.List
 import Debug.Trace
 import qualified Data.Map as Map
 import ProofTypes
@@ -31,7 +31,7 @@ match stmt rule cons =
             True -> 
               let (lhs, rhs) = ((match s1 r1 cons), (match s2 r2 cons)) in
               case consistent_subs lhs rhs of
-                True -> List.nub $ lhs ++ rhs 
+                True -> nub $ lhs ++ rhs 
                 False -> false_mapping -- inconsistent substitutions
             False -> false_mapping -- not the same operator
         Free s1 -> false_mapping --should not a Free in statements
@@ -52,7 +52,7 @@ find_constraint free cons =
 
 meet_constraint :: String -> Stmt String -> [Stmt String] -> Bool
 meet_constraint free_nm try_mat cons = 
-  let match = List.find (find_constraint free_nm) cons in
+  let match = find (find_constraint free_nm) cons in
   case try_mat of
     Var p_mat ->
       case match of
@@ -77,7 +77,7 @@ replace_terms :: Stmt String -> [(Stmt String, Stmt String)] -> [Stmt String] ->
 replace_terms rule lst cons =
   case rule of
     Var r1 -> Var r1
-    Free r1 -> let search = List.find (\((e,f)) -> r1 == val f) lst in
+    Free r1 -> let search = find (\((e,f)) -> r1 == val f) lst in
       case search of
         Just (e,f) -> 
           if (meet_constraint r1 e cons) then e else (Var "FAIL")--Free r1
@@ -95,7 +95,7 @@ replace_terms rule lst cons =
 expand :: Stmt String -> [Expr String] -> String -> [String] -> [String] -> [Stmt String] -> [Expr String]
 expand conclusion facts ruleset_name expr_deps r_deps cons =
   let frees = get_free_vars conclusion in
-  let all_combs = List.map (\e -> [[(y,e)] | y <- facts]) frees in
+  let all_combs = map (\e -> [[(y,e)] | y <- facts]) frees in
   let replacements = rec_combine all_combs in -- Generate all possible mappings
   if replacements == [] then 
     (if conclusion == (Var "FAIL") then [] else [Expr "_" conclusion (Just ([ruleset_name]++r_deps),(Just expr_deps))]) else

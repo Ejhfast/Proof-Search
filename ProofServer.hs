@@ -4,7 +4,7 @@ import Happstack.Server
 import System.Environment
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
-import List
+import Data.List
 import Debug.Trace
 import System.Timeout as S
 import ProofParse

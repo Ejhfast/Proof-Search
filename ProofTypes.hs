@@ -1,6 +1,6 @@
 module ProofTypes where
 import Prelude
-import List
+import Data.List
 
 -- An Expr is a "fact" in the system
 data Expr a = Expr {_id :: String, body :: Stmt a, justification :: (Maybe [String], Maybe [String])}
@@ -31,7 +31,7 @@ val stmt = case stmt of
 deps :: Expr String -> [String]
 deps expr =
   case justification expr of
-    (_, Just a) -> List.nub $ filter (\a -> a /= "_") (a++[_id expr])
+    (_, Just a) -> nub $ filter (\a -> a /= "_") (a++[_id expr])
     (_, Nothing) -> [_id expr]
 
 --Get rules used to prove an expression
@@ -43,7 +43,7 @@ rule_deps expr =
 
 --Merge two lists of expression assumptions
 merge_deps :: [String] -> [String] -> [String]
-merge_deps one two = List.nub $ one ++ two
+merge_deps one two = nub $ one ++ two
 
 --get all assumption dependencies associated with a rule expansion
 subs_deps :: [(Expr String,Stmt String)] -> [String]
@@ -59,7 +59,7 @@ get_free_vars :: Stmt String -> [Stmt String]
 get_free_vars stmt = case stmt of 
   (Free a) -> [Free a]
   (Var a) -> []
-  (Op _ x y) -> List.nub $ (get_free_vars x) ++ (get_free_vars y)
+  (Op _ x y) -> nub $ (get_free_vars x) ++ (get_free_vars y)
 
 --helper method for generating all possible rule expansions    
 rec_combine :: [[[a]]] -> [[a]]

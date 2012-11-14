@@ -1,5 +1,5 @@
 module ProofFuncs where
-import List  
+import Data.List  
 import ProofTypes
 
 math :: (Int -> Int -> Int) -> String -> String -> String -> Stmt String
@@ -47,7 +47,7 @@ collapse_funcs stmt =
 			"." -> [string_order stmt]
 			_ -> [stmt]
 		(Op "." x y) -> [string_order stmt]
-		(Op op lhs rhs) -> List.nub $ 
+		(Op op lhs rhs) -> nub $ 
 		                          [(Op op x y) | x <- (collapse_funcs lhs), y <- (collapse_funcs rhs)] ++
 		                          [(Op op x rhs) | x <- (collapse_funcs lhs)] ++
 		                          [(Op op lhs y) | y <- (collapse_funcs rhs)] ++ [stmt]
