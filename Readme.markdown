@@ -25,6 +25,7 @@
 ### Install
 
     apt-get install  ghc  libghc-missingh-dev libghc-happstack-server-dev
+    make 
 
 ### License
 

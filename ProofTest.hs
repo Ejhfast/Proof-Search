@@ -1,4 +1,4 @@
-module ProofTest where
+module Main where
 import Data.List  
 import ProofSearch
 import ProofParse
@@ -8,6 +8,8 @@ import System.Timeout
 import Control.Monad
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
+import Text.ParserCombinators.Parsec.Error
+import Text.Show
 
 {-
 iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> IO String
@@ -23,7 +25,7 @@ iter depth rsets fsets assumps conc =
     _ -> iter (depth - 1) rsets fsets fwrd back
 -}
 
-iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> IO (Maybe String)
+iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> IO ([Char])
 iter 0 _ _ _ _ = do { return $ "Failed to prove." }
 iter depth rsets fsets assumps conc =
   let back = (++) conc $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
@@ -46,7 +48,7 @@ forward_search depth start toprove rulesets stmts =
     _ -> forward_search (depth - 1) start toprove rulesets $ nub update
 -}
     
-verify :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO (Maybe String)
+verify :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO ([Char])
 --verify :: Int -> [Expr String] -> [Ruleset String] -> [Expr String] -> IO String
 verify depth stmt rulesets assumps =
   iter depth rulesets [] assumps stmt
@@ -54,16 +56,17 @@ verify depth stmt rulesets assumps =
 --  do {return $ forward_search depth stmt equiv rulesets assumps }
 
 run_test to_prove rulesets stmts = do
-  res <- verify 4 to_prove rulesets stmts
-  case res of
-    (Just x) -> return x
-    Nothing -> return "failed"
+  --res <- verify 4 to_prove rulesets stmts
+  return verify 4 to_prove rulesets stmts
+--  case res of
+   -- (Just x) -> return x
+--    Nothing -> return "failed"
   
-time_test to_prove rulesets stmts = do
-  res <- timeout 1000000 (run_test to_prove rulesets stmts) -- .1 second to return answer
-  case res of
-    (Just x) -> return x
-    Nothing -> return "failed"
+--time_test to_prove rulesets stmts = do
+--  res <- timeout 1000000 (run_test to_prove rulesets stmts) -- .1 second to return answer
+--  case res of
+--    (Just x) -> return x
+--    Nothing -> return "failed"
 
 make_rulesets rulesets =
   parse (parse_rulesets []) "" rulesets
@@ -71,22 +74,44 @@ make_rulesets rulesets =
 make_assumptions assumps =
   parse (parse_assumptions []) "" assumps
 
-make_conc conc = do
-  res <- parse (parse_conclusion []) "" conc
-  case res of
-    (Just res) -> return res
+--make_conc conc = do
+--  res <- parse (parse_conclusion []) "" conc
+--  case res of
+--   (Just res) -> return res
 
+make_conc conc2 = do
+--  res <-  
+  parse (parse_conclusion []) "" conc2
+--  case res of
+--    (ParseError ) -> return res
+    --( [Expr String] res) -> return res
+--    (Just res) -> return res
+
+--  res <- parse (parse_conclusion []) "" conc
+--  case res of
+--   (Just res) -> return res
+
+main :: IO ()
+main = do
+  putStrLn (show ( make_conc ("Z&(Z=>F)" )))
+  putStrLn (show "hello")
+
+  
+--  case x of 
+--    Text.ParserCombinators.Parsec.Error.ParseError -> return x
+--    [Expr String] ->  return x
+              
+  {-
 test1 =
   let r1 = "Neg{~(~A):=A;(A,B)~>A&B;}" in
   let r2 = "TP{A,(A=>B)~>B;}" in
   let s1 = "A1:~(~Z)=>F;" in
   let s2 = "A2:F=>D;" in
   let s3 = "A3:Z;" in
-  let to_prove = "Z&(Z=>F)" in
-  time_test (make_conc to_prove) (make_rulesets r1++r2) (make_assumptions s1++s2++s3)
+  let to_prove = "Z&(Z=>F)"  in
+  let a=make_conc to_prove in
+  run_test  (a) (make_rulesets r1++r2) (make_assumptions s1++s2++s3)
 
-  
-  {-
 test2 =
   let r2 = make_ruleset "DL" ["~(A&B)-->~A|~B","~(A|B)-->~A&~B"] ""  in
   let r3 = make_ruleset "TP" ["A,(A=>B)~>B","(A=>B),(B=>C)~>(A=>C)"] ""  in
