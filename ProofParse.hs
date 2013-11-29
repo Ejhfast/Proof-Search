@@ -27,7 +27,7 @@ argumentTree [] = Op "ARGS" (Var "NOP") (Var "NOP")
 argumentTree (x : xs) =
   case xs of
     [] -> Op "ARGS" x (Var "NOP")
-    _ -> Op "ARGS" x (argument_tree xs)
+    _ -> Op "ARGS" x (argumentTree xs)
 
 funcTree :: String -> Stmt String -> Stmt String -> Stmt String
 funcTree = Op
@@ -46,12 +46,12 @@ makeRule stmt cons =
 parseTexCommand :: String -> Int ->
      Parser (Stmt String) -> Parser (Stmt String)
 
-parseTexCommand command args parse_rest = do
-        c <- string $ '\\' ++ command
-        m <- modifiers parse_rest
-        get_args <- count args $ arg_parse parse_rest
-        return $ Op command (argument_tree get_args) m
-
+parseTexCommand command args parseRest = do
+  c <- string $ "\\" ++ command
+  m <- modifiers parseRest
+  get_args <- count args $ argParse parseRest
+  return $ Op command (argumentTree get_args) m
+  
 createCommands :: [
   (
     String,
@@ -63,41 +63,59 @@ createCommands :: [
                     Parser (Stmt String)
                   ]
 createCommands lst =
-  [parse_tex_command name args | (name, args) <- lst]
+  [parseTexCommand name args | (name, args) <- lst]
 
 
 argParse :: Parser (Stmt String) ->
              Parser (Stmt String)
-argParse parse_rest =
-  char '{' parse_rest char '}'
+argParse parseRest =
+  do { 
+    char '{'; 
+    x <- parseRest; 
+    char '}'; 
+    return x
+    }
+--  char '{' parseRest char '}'
 
 
 underscore :: Parser (Stmt String) ->
               Parser (Stmt String)
-underscore parse_rest =
-    string "_{" parse_rest char '}'
+underscore parseRest =
+  do { 
+    string "_{"; 
+    x <- parseRest; 
+    char '}'; 
+    return x
+    }
+--    string "_{" parseRest char '}'
 
 carrot :: Parser (Stmt String) ->
           Parser (Stmt String)
-carrot parse_rest =
-  string "^{" parse_rest char '}'
+carrot parseRest =
+  do { 
+    string "^{"; 
+    x <- parseRest; 
+    char '}'; 
+    return x}
+--  string "^{" parseRest char '}'
 
 constraint :: Parser (Stmt String) ->
               Parser (Stmt String)
-constraint parse_rest =
-  do {
-    bound <- get_symbol string "::";
-    x <- parse_rest;
-    return $ Op "CONSTRAINT" (Var bound) x
-    }
+constraint parseRest =
+  do { 
+bound <- getSymbol; 
+string "::"; x <- parseRest; 
+return $ Op "CONSTRAINT" (Var bound) x 
+}
+  --do {    bound <- getSymbol string "::";    x <- parseRest;    return $ Op "CONSTRAINT" (Var bound) x    }
 
 constraints :: Parser (Stmt String) ->
                Parser [Stmt String]
-constraints parse_rest =
+constraints parseRest =
   do {
     string "_[";
     constraint_list <- sepBy
-                       (constraint parse_rest)
+                       (constraint parseRest)
                        (char ';');
     char ']';
     return constraint_list
@@ -105,9 +123,9 @@ constraints parse_rest =
 
 modifiers :: Parser (Stmt String) ->
              Parser (Stmt String)
-modifiers parse_rest = do
-  u <- optionMaybe $ underscore parse_rest
-  c <- optionMaybe $ carrot parse_rest
+modifiers parseRest = do
+  u <- optionMaybe $ underscore parseRest
+  c <- optionMaybe $ carrot parseRest
   case (u , c) of
     (Just uv, Just cv) -> return $ Op "Meta" uv cv
     (Just uv, Nothing) -> return $ Op "Meta" uv (Var "NOP")
@@ -136,16 +154,16 @@ recurse :: String -> [(String, Int)] ->
 recurse kind custom_tex =
   try (
     expr (
-       all_funcs kind custom_tex)
+       allFuncs kind custom_tex)
     kind custom_tex) <|>
-  all_funcs kind custom_tex
+  allFuncs kind custom_tex
 
 allFuncs :: String -> [(String, Int)] ->
              Parser (Stmt String)
 allFuncs kind custom_tex =
   tryall [
     x $ recurse kind custom_tex |
-    x <- create_commands custom_tex]
+    x <- createCommands custom_tex]
 
 
 -- Parse out rulesets
@@ -158,25 +176,25 @@ parseRule custom_tex = do
     -- A rule is just a certain type of statement in the language
   c <- optionMaybe $ constraints (recurse "ground" custom_tex);
   case c of
-    Just cst -> return $ make_rule x cst
-    _ -> return $ make_rule x []
+    Just cst -> return $ makeRule x cst
+    _ -> return $ makeRule x []
 
 parseRuleset :: [(String, Int)] ->
                  Parser (Ruleset String)
 parseRuleset custom_tex = do
-  name <- get_symbol;
+  name <- getSymbol;
   string "{";
-  rules <- endBy (parse_rule custom_tex) (char ';');
+  rules <- endBy (parseRule custom_tex) (char ';');
   optional $ char ';'
   string "}";
   return $ Ruleset name rules
 
 parseRulesets :: [(String, Int)] -> Parser [Ruleset String]
-parseRulesets custom_tex = many1 $ parse_ruleset custom_tex
+parseRulesets custom_tex = many1 $ parseRuleset custom_tex
 
 parseAssumption :: [(String, Int)] -> Parser (Expr String)
 parseAssumption custom_tex = do
-  name <- get_symbol;
+  name <- getSymbol;
   char ':';
   expr <- recurse "ground" custom_tex;
   char ';'
@@ -184,7 +202,7 @@ parseAssumption custom_tex = do
     Nothing , Nothing)
 
 parseAssumptions :: [(String, Int)] -> Parser [Expr String]
-parseAssumptions custom_tex = many1 $ parse_assumption custom_tex
+parseAssumptions custom_tex = many1 $ parseAssumption custom_tex
 
 parseConclusion :: [(String, Int)] -> Parser [Expr String]
 parseConclusion custom_tex = do
@@ -205,7 +223,7 @@ withSemi p = do
 stringlist :: Parser [String]
 stringlist = do
   char '[';
-  items <- sepBy get_symbol (char ',');
+  items <- sepBy getSymbol (char ',');
   char ']';
   return items
 
@@ -215,7 +233,7 @@ getSymbol = many1 (digit <|> letter)
 declaredConstant :: Parser (Stmt String)
 declaredConstant = do {
   char '$';
-  x <- get_symbol;
+  x <- getSymbol;
   return (Var x);
   } <?> "constant"
 
@@ -228,7 +246,7 @@ number = do {
 
 symbol :: String -> [(String , Int)] -> Parser (Stmt String)
 symbol kind custom_tex = do
-  x <- get_symbol
+  x <- getSymbol
   m <- modifiers $ recurse kind custom_tex
   case m of
         Op "Meta" (Var "NOP") (Var "NOP") ->
@@ -246,8 +264,13 @@ factor :: Parser (Stmt String) ->
           Parser ( Stmt String
   )
 factor tex_parse kind custom_tex =
-  char '(' expr tex_parse kind custom_tex char ')'
-  <|> declared_constant
+  do {char '('; x <- expr tex_parse kind custom_tex; char ')'; return x }
+--  char '('
+--  expr
+--  tex_parse
+--  kind
+--  custom_tex char ')'
+  <|> declaredConstant
   <|> number
   <|> symbol kind custom_tex
 
@@ -258,42 +281,36 @@ expr tex_parse kind custom_tex =
           tex_parse <|> factor tex_parse kind custom_tex
 
 table = [
-    [prefix "~" (unary_tree "~")]
-  , [prefix "-" (unary_tree "-")]
-  , [prefix "=" (unary_tree "__CNTS")]
-  , [prefix "!" (unary_tree "__NOT_CNTS")]
-  , [op "." (func_tree ".") AssocLeft]
+    [prefix "~" (unaryTree "~")]
+  , [prefix "-" (unaryTree "-")]
+  , [prefix "=" (unaryTree "__CNTS")]
+  , [prefix "!" (unaryTree "__NOT_CNTS")]
+  , [op "." (funcTree ".") AssocLeft]
   , [
-       op "&" (func_tree "&")
+       op "&" (funcTree "&")
        AssocLeft,
-       op "|" (func_tree "|")
+       op "|" (funcTree "|")
        AssocLeft,
-       op "," (func_tree ",") AssocLeft
+       op "," (funcTree ",") AssocLeft
     ]
-  , [op "*" (func_tree "*") AssocLeft, op "/" (func_tree "/") AssocLeft]
-  , [op "+" (func_tree "+") AssocLeft, op "-" (func_tree "-") AssocLeft]
+  , [op "*" (funcTree "*") AssocLeft, op "/" (funcTree "/") AssocLeft]
+  , [op "+" (funcTree "+") AssocLeft, op "-" (funcTree "-") AssocLeft]
   , [
-       op "=" (func_tree "=") AssocLeft,
-       op "!=" (func_tree "!=") AssocLeft,
-       op "<=" (func_tree "<=") AssocLeft,
-       op ">=" (func_tree ">=") AssocLeft,
-       op "<" (func_tree "<") AssocLeft,
-       op ">" (func_tree ">") AssocLeft]
+       op "=" (funcTree "=") AssocLeft,
+       op "!=" (funcTree "!=") AssocLeft,
+       op "<=" (funcTree "<=") AssocLeft,
+       op ">=" (funcTree ">=") AssocLeft,
+       op "<" (funcTree "<") AssocLeft,
+       op ">" (funcTree ">") AssocLeft]
   , [
-       op ":=" (func_tree "rewrite") AssocLeft,
-       op "~>" (func_tree "eq_rewrite") AssocLeft] ]
+       op ":=" (funcTree "rewrite") AssocLeft,
+       op "~>" (funcTree "eq_rewrite") AssocLeft] ]
   where
-    op s f = Infix (string s return f)
-    prefix name fun = Prefix ( string name return fun   )
+    op s f = Infix (do { string s; return f})
+    prefix name fun = Prefix ( do { string name; return fun; }    )
 
 runParse kind custom_tex = do
         x <- recurse kind custom_tex
         eof
         return x
 
-myTex = [
-  ( "go", 2 ),
-  ( "rewrite", 2 ) ,
-  ("star" , 1) ,
-  ("e" , 0)
-  ]

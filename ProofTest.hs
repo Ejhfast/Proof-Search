@@ -25,16 +25,16 @@ iter :: Int ->
 iter 0 _ _ _ _ = return "Failed to prove."
 iter depth rsets fsets assumps conc =
   let back = (++) conc $
-             back_apply_rulesets_stmts conc fsets in
+             backApplyRulesetsStmts conc fsets in
   -- Look backward once with frees
   let expand_back = (++) back $
-                    back_apply_rulesets_stmts back rsets in
+                    backApplyRulesetsStmts back rsets in
   -- Generate one layer back from conclusion
   let fwrd = (++) assumps $
-             apply_rulesets_stmts assumps fsets in
+             applyRulesetsStmts assumps fsets in
   -- Look forward with frees
   let expand_fwrd = (++) fwrd $
-                    apply_rulesets_stmts fwrd rsets in
+                    applyRulesetsStmts fwrd rsets in
   -- Generate one layer forward from assumptions
   let matches = [
         (x , y) |
@@ -52,10 +52,10 @@ verify depth stmt rulesets assumps =
   iter depth rulesets [] assumps stmt
 
 runTest = return verify 4
-makeRuleset = parse (parse_rulesets []) ""
-makeRulesets = parse (parse_rulesets []) ""
-makeAssumptions = parse (parse_assumptions []) ""
-makeConc = oparse (parse_conclusion []) ""
+makeRuleset = parse (parseRulesets []) ""
+makeRulesets = parse (parseRulesets []) ""
+makeAssumptions = parse (parseAssumptions []) ""
+makeConc = parse (parseConclusion []) ""
 
 -- Test for empty string as input, otherwise parse
 maybeParse :: Parser [a] -> String -> Maybe [a]
@@ -72,7 +72,7 @@ io f = interact (unlines . f . lines)
 
 processIt s = show (
   parse (
-     parse_assumptions []
+     parseAssumptions []
      ) "" s
   )
 
@@ -86,9 +86,16 @@ exRuleset = "myfule{"
              "}"
 
 exRuleset2 = "Test{X+Y~>Y+X;X+Y:=Y+X;}"
-testParse = parse (parse_rule mytex) "" ex_rule
-testRuleset = parse (parse_ruleset mytex) "" ex_ruleset2
-testRulesets = parse (parse_rulesets mytex) "" $ ex_ruleset
-                ++ ex_ruleset ++ ex_ruleset
+myTex = [
+  ( "go", 2 ),
+  ( "rewrite", 2 ) ,
+  ("star" , 1) ,
+  ("e" , 0)
+  ]
+
+testParse = parse (parseRule myTex) "" exRule
+testRuleset = parse (parseRuleset myTex) "" exRuleset2
+testRulesets = parse (parseRulesets myTex) "" $ exRuleset
+                ++ exRuleset ++ exRuleset
 condRuleset = "TestRule{(X+Y+Z~>Z+X+Y)_[Z::(Z=1);Y::(!T)];}"
-testCond = parse (parse_ruleset mytex) "" cond_ruleset
+testCond = parse (parseRuleset myTex) "" condRuleset

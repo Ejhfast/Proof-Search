@@ -13,19 +13,28 @@ import ProofFuncs
 import ProofSearch
 import System.IO.Unsafe
 
-runConf port = Conf port Nothing (logAccess nullConf) 5
-
+runConfOld port = Conf port Nothing (logAccess nullConf) 5
+--- port Nothing (logAccess nullConf) 5
+runConf port_n =  Conf
+                      { 
+                        port      = port_n,
+                        validator = Nothing,
+                        logAccess = Just logMAccess,
+--                        threadGroup = 
+                        Happstack.Server.timeout   = 30
+                      }
+                      
 main :: IO ()
 main = do
   args <- getArgs
   let port = read (head args) :: Int
-  simpleHTTP (runConf port) app
+  simpleHTTP (runConf port)  app
 
 app :: ServerPart Response
 app = do
   decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000)
-  msum [ dir "check_proof" check_proof,
-         dir "check_assignment" check_assign,
+  msum [ dir "check_proof" checkProof,
+         dir "check_assignment" checkAssign,
          dir "health" health ]
 
 -- This is so S3 can test whether a server is responding
@@ -47,24 +56,25 @@ checkProof = do
         then []
         else read syntax :: [(String, Int)]
   let try_rulesets =
-        maybe_parse (parse_rulesets new_parse_funcs)
-        $ remove_ws rulesets
+        maybeParse (parseRulesets new_parse_funcs)
+        $ removeWs rulesets
   case try_rulesets of
     Just r ->
-      let try_frees = maybe_parse
-                      (parse_rulesets new_parse_funcs) $
-                      remove_ws frees in
+      let try_frees = maybeParse
+                      (parseRulesets new_parse_funcs) $
+                      removeWs frees in
       case try_frees of
         Just f ->
           let try_assumps =
-                maybe_parse
-                (parse_assumptions new_parse_funcs) $
-                remove_ws assumptions in
+                maybeParse
+                (parseAssumptions new_parse_funcs) $
+                removeWs assumptions in
           case try_assumps of
             Just a ->
               let try_conc =
-                    maybe_parse (parse_conclusion new_parse_funcs)
-                    $ remove_ws conclusion in
+                    maybeParse (parseConclusion
+                                new_parse_funcs)
+                    $ removeWs conclusion in
               case try_conc of
                 Just c -> do
                   res <- iter 2 r f a c
@@ -85,12 +95,12 @@ checkAssign = do
         if syntax == ""
         then []
         else read syntax :: [(String, Int)]
-  let rs_parsed = parse (parse_rulesets new_parse_funcs)
-                  "" $ remove_ws rulesets
-  let as_parsed = parse (parse_assumptions new_parse_funcs)
-                  "" $ remove_ws assumptions
+  let rs_parsed = parse (parseRulesets new_parse_funcs)
+                  "" $ removeWs rulesets
+  let as_parsed = parse (parseAssumptions new_parse_funcs)
+                  "" $ removeWs assumptions
   let g_parsed = parse (recurse "ground" new_parse_funcs)
-                 "" $ remove_ws goal
+                 "" $ removeWs goal
   case (rs_parsed, as_parsed, g_parsed) of
     (Right r, Right a, Right go) ->
       ok $
@@ -109,7 +119,7 @@ aps a s =
   case
     unsafePerformIO $ S.timeout 500000 $
     return $
-    apply_rulesets_stmts a s
+    applyRulesetsStmts a s
   of
     Just x -> x
     _ -> []
@@ -117,7 +127,7 @@ aps a s =
 baps a s =
   case
     unsafePerformIO $ S.timeout 500000 (
-      return $ back_apply_rulesets_stmts a s
+      return $ backApplyRulesetsStmts a s
       )
   of
     Just x -> x
@@ -130,17 +140,17 @@ iter :: Int -> [Ruleset String] ->
 iter 0 _ _ _ _ = return "Failed to prove."
 iter depth rsets fsets assumps conc =
   let back = (++) conc $
-             back_apply_rulesets_stmts
+             backApplyRulesetsStmts
              conc fsets in -- Look backward once with frees
   let expand_back = (++)
                     back $
-                    back_apply_rulesets_stmts
+                    backApplyRulesetsStmts
                     back rsets in -- Generate one layer back from conclusion
   let fwrd = (++)
              assumps $
-             apply_rulesets_stmts assumps fsets in -- Look forward with frees
+             applyRulesetsStmts assumps fsets in -- Look forward with frees
   let expand_fwrd = (++)
-                    fwrd $ apply_rulesets_stmts fwrd rsets
+                    fwrd $ applyRulesetsStmts fwrd rsets
   in -- Generate one layer forward from assumptions
    let matches = [(x , y) |
                   x <- expand_fwrd,

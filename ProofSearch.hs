@@ -7,6 +7,8 @@ import ProofTypes
 import ProofParse
 import ProofFuncs
 
+import Control.Arrow
+
 subDepthLevel = 12 -- Search depth for subexpressions
 
 -- test for consisent substitutions
@@ -47,23 +49,23 @@ match :: Stmt String ->
          [(Stmt String, Stmt String)]
 match stmt rule cons =
   case rule of
-    Free r1 -> if meet_constraint r1 stmt cons
+    Free r1 -> if meetConstraint r1 stmt cons
                then [
                  (stmt , rule)
                  ]
                else
-                 false_mapping
+                 falseMapping
     Var "NOP" ->
       if stmt == Var "NOP"
       then []
-      else false_mapping -- hack for unary operations
+      else falseMapping -- hack for unary operations
     Var r1 ->
       if stmt == Var r1
       then []
-      else false_mapping
+      else falseMapping
     (Op ro r1 r2) ->
       case stmt of
-        Var s1 -> false_mapping -- Var does not map to statement
+        Var s1 -> falseMapping -- Var does not map to statement
         (Op so s1 s2) ->
           if so == ro then
              (
@@ -73,13 +75,13 @@ match stmt rule cons =
                       match s2 r2 cons
                     )
               in
-              if consistent_subs lhs rhs then
+              if consistentSubs lhs rhs then
                 nub $ lhs ++ rhs
                 else
-                false_mapping -- inconsistent substitutions
+                falseMapping -- inconsistent substitutions
              )
-             else false_mapping -- not the same operator
-        Free s1 -> false_mapping -- should not a Free in statements
+             else falseMapping -- not the same operator
+        Free s1 -> falseMapping -- should not a Free in statements
 
 -- match rules with two conditions
 multiMatch :: Stmt String ->
@@ -102,18 +104,18 @@ multiMatch cond conc stmt facts expr_deps r_deps cons = case cond of
     l_subs -> let r_sub_lst =
                     filter (
                       \ (f, d) ->
-                      ((f /= false_mapping) &&
-                       consistent_subs l_subs f))
+                      ((f /= falseMapping) &&
+                       consistentSubs l_subs f))
                     [
                       (match (body x) b cons,
                        deps x
                       )
                     |
                      x <- facts] in
-      [Expr "_" (replace_terms conc (
+      [Expr "_" (replaceTerms conc (
                     l_subs ++ r_subs) cons)
        (Just r_deps,
-        Just (merge_deps expr_deps d))
+        Just (mergeDeps expr_deps d))
       | (r_subs, d)
                     <- r_sub_lst ]
 
@@ -125,30 +127,30 @@ findConstraint free cons =
 
 meetConstraint :: String -> Stmt String -> [Stmt String] -> Bool
 meetConstraint free_nm try_mat cons =
-  let match = find (find_constraint free_nm) cons in
+  let match = find (findConstraint free_nm) cons in
   case try_mat of
     Var p_mat ->
       case match of
         Just (Op "CONSTRAINT" (Var n)
               (Op "__CNTS" x (Var "NOP"))) ->
-          contains_var x (Var p_mat)
+          containsVar x (Var p_mat)
         Just (
           Op "CONSTRAINT" (Var n)
           (Op "__NOT_CNTS" x (Var "NOP"))) ->
           Debug.Trace.trace (
             show (
                not (
-                  contains_var x (Var p_mat))))
-          (not (contains_var x (Var p_mat)))
+                  containsVar x (Var p_mat))))
+          (not (containsVar x (Var p_mat)))
         _ -> True
     stmt ->
       case match of
         Just (Op "CONSTRAINT" (Var n)
-              (Op "__CNTS" x (Var "NOP"))) -> contains_var x stmt
+              (Op "__CNTS" x (Var "NOP"))) -> containsVar x stmt
         Just (Op "CONSTRAINT" (Var n)
               (Op "__NOT_CNTS" x (Var "NOP"))) ->
-          Debug.Trace.trace (show (not (contains_var x stmt)))
-          (not (contains_var x stmt))
+          Debug.Trace.trace (show (not (containsVar x stmt)))
+          (not (containsVar x stmt))
         _ -> True
 
 containsVar :: Stmt String -> Stmt String -> Bool
@@ -163,9 +165,9 @@ containsVar sub_expr expr =
   of
     Var x -> sub_expr == expr
     Free x -> sub_expr == expr
-    Op o x y -> contains_var sub_expr x
+    Op o x y -> containsVar sub_expr x
                 ||
-                contains_var sub_expr y
+                containsVar sub_expr y
 
 -- Replace free variables in a statement as specified in provided mapping
 replaceTerms ::
@@ -186,13 +188,13 @@ replaceTerms rule lst cons =
                ,
           f
                ) ->
-          if meet_constraint r1 e cons
+          if meetConstraint r1 e cons
           then e
           else Var "FAIL" -- Free r1
         Nothing -> Free r1
     (Op ro r1 r2) ->
-      let lhs = replace_terms r1 lst cons in
-      let rhs = replace_terms r2 lst cons in
+      let lhs = replaceTerms r1 lst cons in
+      let rhs = replaceTerms r2 lst cons in
       case (lhs, rhs )
       of
         (Var "FAIL", Var "FAIL") -> Var "FAIL"
@@ -211,7 +213,7 @@ expand :: Stmt String ->
           [Stmt String] ->
           [Expr String]
 expand conclusion facts ruleset_name expr_deps r_deps cons =
-  let frees = get_free_vars conclusion in
+  let frees = getFreeVars conclusion in
   let all_combs = map (
         \ e -> [
           [
@@ -225,7 +227,7 @@ expand conclusion facts ruleset_name expr_deps r_deps cons =
           y <- facts
           ]
         ) frees in
-  let replacements = rec_combine all_combs in -- Generate all possible mappings
+  let replacements = recCombine all_combs in -- Generate all possible mappings
   if null replacements then
     (if conclusion ==
         Var "FAIL"
@@ -239,16 +241,16 @@ expand conclusion facts ruleset_name expr_deps r_deps cons =
       )
     [
       Expr "_" (
-         replace_terms conclusion (
+         replaceTerms conclusion (
             map (
-               ControlArrow.first body
+               Control.Arrow.first body
                ) m
             ) cons
          )
       (
         Just (ruleset_name : r_deps),
-        Just (merge_deps expr_deps (
-                 subs_deps m)
+        Just (mergeDeps expr_deps (
+                 subsDeps m)
              )
       )
       |
@@ -270,13 +272,13 @@ applyRule depth stmt rule facts ruleset_name expr_deps r_deps =
         ) in
   let cons = cnst rule in
   let try_match = match stmt cond cons in
-  let prelim_expand = replace_terms conc try_match cons in
+  let prelim_expand = replaceTerms conc try_match cons in
     let top_level_match
-          = if try_match == false_mapping then [] else
+          = if try_match == falseMapping then [] else
               expand prelim_expand facts ruleset_name expr_deps r_deps cons
       in
       case cond of
-          (Op "," _ _) -> multi_match cond conc stmt facts expr_deps
+          (Op "," _ _) -> multiMatch cond conc stmt facts expr_deps
                             (ruleset_name : r_deps)
                             cons
           otherwise ->
@@ -286,11 +288,11 @@ applyRule depth stmt rule facts ruleset_name expr_deps r_deps =
                                           [Expr "_" (Op o (body x) rhs)
                                              (
                                                Just (ruleset_name : r_deps),
-                                               Just (merge_deps expr_deps
+                                               Just (mergeDeps expr_deps
                                                      (deps x)))
                                            |
                                            x <-
-                                             apply_rule (depth - 1)
+                                             applyRule (depth - 1)
                                              lhs rule facts ruleset_name
                                              expr_deps
                                              r_deps]
@@ -298,11 +300,11 @@ applyRule depth stmt rule facts ruleset_name expr_deps r_deps =
                                             [
                                               Expr "_" (Op o lhs (body x))
                                                (Just (ruleset_name : r_deps),
-                                                Just (merge_deps expr_deps
+                                                Just (mergeDeps expr_deps
                                                       (deps x)))
                                             |
                                              x <-
-                                               apply_rule (depth - 1)
+                                               applyRule (depth - 1)
                                                rhs rule facts ruleset_name
                                                expr_deps
                                                r_deps
@@ -317,13 +319,13 @@ applyRule depth stmt rule facts ruleset_name expr_deps r_deps =
 applyRuleset :: Expr String -> Ruleset String -> [Expr String] -> [Expr String]
 applyRuleset expr ruleset facts =
   concat [
-    f_exprs $
-    apply_rule
-    sub_depth_level (body expr)
+    fExprs $
+    applyRule
+    subDepthLevel (body expr)
     r facts (name ruleset)
     (deps expr)
     (
-      rule_deps expr
+      ruleDeps expr
     )
     |
     r <- set ruleset
@@ -332,7 +334,7 @@ applyRuleset expr ruleset facts =
 applyRulesetStmts :: [Expr String] -> Ruleset String -> [Expr String]
 applyRulesetStmts stmts ruleset =
   concat [
-    apply_ruleset s ruleset stmts
+    applyRuleset s ruleset stmts
     |
     s <- stmts]
 
@@ -342,24 +344,33 @@ applyRulesets :: Expr String ->
                   [Expr String]
 applyRulesets expr rulesets facts =
   concat [
-    apply_ruleset expr rs facts
+    applyRuleset expr rs facts
     | rs <- rulesets]
 
 applyRulesetsStmts :: [Expr String] -> [Ruleset String] -> [Expr String]
 applyRulesetsStmts stmts rulesets =
   case rulesets of
-    [] -> f_exprs stmts
-    _ -> concat [apply_rulesets s rulesets stmts | s <- stmts]
+    [] -> fExprs stmts
+    _ -> concat [applyRulesets s rulesets stmts | s <- stmts]
 
 backApplyRulesetsStmts :: [Expr String] -> [Ruleset String] -> [Expr String]
 backApplyRulesetsStmts stmts rulesets =
   case rulesets of
-    [] -> f_exprs stmts
-    _ -> concat [apply_rulesets s (rev_rules rulesets) stmts | s <- stmts]
+    [] -> fExprs stmts
+    _ -> concat [applyRulesets s (revRules rulesets) stmts | s <- stmts]
 
 revRules :: [Ruleset String] -> [Ruleset String]
+
 revRules = map
-          (\ rs ->
+        (\ rs ->
            Ruleset (name rs)
              (map (\ r -> Rule (conclusion r) (condition r) (kind r) (cnst r)) $
-                set rs)) rsets
+              set rs
+             )
+        )
+              
+-- revRules rsets = map
+--           (\ rs ->
+--            Ruleset (name rs)
+--              (map (\ r -> Rule (conclusion r) (condition r) (kind r) (cnst r)) $
+--                 set rs)) rsets

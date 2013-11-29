@@ -99,11 +99,11 @@ getFreeVars :: Stmt String -> [Stmt String]
 getFreeVars stmt = case stmt of
   (Free a) -> [Free a]
   (Var a) -> []
-  (Op _ x y) -> nub $ get_free_vars x ++ get_free_vars y
+  (Op _ x y) -> nub $ getFreeVars x ++ getFreeVars y
 
 -- helper method for generating all possible rule expansions
 recCombine :: [[[a]]] -> [[a]]
-recCombine (l1 : l2 : rest) = rec_combine (
+recCombine (l1 : l2 : rest) = recCombine (
   [
     x
     ++
@@ -137,11 +137,17 @@ showStmt stmt =
     (Var a) -> a
     (Free a) -> a
 
+
+
 showExpr :: Expr String -> String
 showExpr expr =
-  filter (/= '\"') $
-  showStmt body expr ++
-             " by rule(s) " ++
-               show (rule_deps expr) ++
-               " and assumption(s) "
-               ++ show (deps expr)
+  filter (/= '\"')  (showStmt $ body expr)
+  ++
+  " by rule(s) "
+  ++
+  show (ruleDeps expr)
+  ++
+  " and assumption(s) "
+  ++
+  show (deps expr)
+  
