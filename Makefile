@@ -12,3 +12,6 @@ lint :
 
 lint2 : 
 	hlint ProofTest.hs
+
+scan :
+	~/.cabal/bin/scan *.hs
