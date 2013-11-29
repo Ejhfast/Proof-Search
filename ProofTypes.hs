@@ -78,7 +78,9 @@ show_stmt stmt =
     (Var a) -> a
     (Free a) -> a
     
-show_expr :: Expr String -> String
-show_expr expr =
-  filter (\c -> c /= '\"') $ (show_stmt $ body expr)++" by rule(s) "++
-    (show (rule_deps expr))++" and assumption(s) "++(show (deps expr))
+showExpr :: Expr String -> String
+showExpr expr =
+  filter (/= '\"') $ 
+  show_stmt body expr ++
+             " by rule(s) " ++
+               show (rule_deps expr) ++" and assumption(s) "++ show (deps expr)

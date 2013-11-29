@@ -11,7 +11,7 @@ sub_depth_level = 12 -- Search depth for subexpressions
 
 --test for consisent substitutions
 consistent_subs :: [(Stmt String, Stmt String)] -> [(Stmt String, Stmt String)] -> Bool
-consistent_subs lhs rhs = if (sum bad_matches) == 0 then True else False 
+consistent_subs lhs rhs = (sum bad_matches) == 0
   where 
     full = lhs ++ rhs
     bad_matches = map (\(e,f) -> length (filter (\(e1,f1) -> e /= e1 && f==f1) full)) full -- (e == e1 && f /= f1) || 
@@ -151,5 +151,8 @@ back_apply_rulesets_stmts stmts rulesets =
     _ -> concat [apply_rulesets s (rev_rules rulesets) stmts | s <- stmts]
 
 rev_rules :: [Ruleset String] -> [Ruleset String]
-rev_rules rsets = 
-  map (\rs -> Ruleset (name rs) (map (\r -> Rule (conclusion r) (condition r) (kind r) (cnst r)) $ set rs)) rsets
+rev_rules = map
+          (\ rs ->
+           Ruleset (name rs)
+             (map (\ r -> Rule (conclusion r) (condition r) (kind r) (cnst r)) $
+                set rs)) rsets

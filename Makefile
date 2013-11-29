@@ -6,3 +6,9 @@ all : $(ofiles)
 
 %.o: %.hs
 	ghc $<
+
+lint : 
+	hlint *.hs
+
+lint2 : 
+	hlint ProofTest.hs

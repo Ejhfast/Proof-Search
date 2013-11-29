@@ -28,7 +28,7 @@ argument_tree (x:xs) =
     _ -> Op "ARGS" x (argument_tree xs)
 
 func_tree :: String -> Stmt String -> Stmt String -> Stmt String    
-func_tree op a b = Op op a b
+func_tree = Op 
 
 unary_tree :: String -> Stmt String -> Stmt String
 unary_tree op a = Op op a (Var "NOP")
@@ -69,7 +69,7 @@ constraint :: Parser (Stmt String) -> Parser (Stmt String)
 constraint parse_rest = 
   do { bound <- get_symbol; string "::"; x <- parse_rest; return $ Op "CONSTRAINT" (Var bound) x }
 
-constraints :: Parser (Stmt String) -> Parser ([Stmt String])
+constraints :: Parser (Stmt String) -> Parser [Stmt String]
 constraints parse_rest =
   do { string "_["; constraint_list <- sepBy (constraint parse_rest) (char ';'); char ']'; return $ constraint_list }
   
@@ -87,7 +87,7 @@ fake_parse :: Parser (Stmt String)
 fake_parse = do { x <- string "0"; return (Var x) }
 
 tryall :: [Parser (Stmt String)] -> Parser (Stmt String)
-tryall ps = foldr (\x -> (<|> (try x))) mzero ps
+tryall = foldr (\ x -> (<|> (try x))) mzero
 
 -- Main calls here to parse out baby latex expressions
 
@@ -195,7 +195,7 @@ table = [
   , [op "=" (func_tree "=") AssocLeft, op "!=" (func_tree "!=") AssocLeft, op "<=" (func_tree "<=") AssocLeft, op ">=" (func_tree ">=") AssocLeft, op "<" (func_tree "<") AssocLeft, op ">" (func_tree ">") AssocLeft]
   , [op ":=" (func_tree "rewrite") AssocLeft, op "~>" (func_tree "eq_rewrite") AssocLeft] ]
   where
-    op s f assoc = Infix (do { string s; return f }) assoc
+    op s f = Infix (string s return f)
     prefix name fun = Prefix (do{ string name; return fun })
 
 run_parse kind custom_tex = do
