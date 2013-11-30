@@ -4,7 +4,7 @@ import Happstack.Server
 import System.Environment
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
-import List
+import Data.List
 import Debug.Trace
 import System.Timeout as S
 import ProofParse
@@ -13,46 +13,68 @@ import ProofFuncs
 import ProofSearch
 import System.IO.Unsafe
 
-runConf port = Conf port Nothing (logAccess nullConf) 5
-
+runConfOld port = Conf port Nothing (logAccess nullConf) 5
+--- port Nothing (logAccess nullConf) 5
+runConf port_n =  Conf
+                      { 
+                        port      = port_n,
+                        validator = Nothing,
+                        logAccess = Just logMAccess,
+--                        threadGroup = 
+                        Happstack.Server.timeout   = 30
+                      }
+                      
 main :: IO ()
 main = do
   args <- getArgs
   let port = read (head args) :: Int
-  simpleHTTP (runConf port) $ app
+  simpleHTTP (runConf port)  app
 
 app :: ServerPart Response
-app = do 
-  decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000) 
-  msum [   dir "check_proof" $ check_proof,
-           dir "check_assignment" $ check_assign,
-           dir "health" $ health ]
+app = do
+  decodeBody (defaultBodyPolicy "/tmp/" 0 10000 10000)
+  msum [ dir "check_proof" checkProof,
+         dir "check_assignment" checkAssign,
+         dir "health" health ]
 
--- This is so S3 can test whether a server is responding           
+-- This is so S3 can test whether a server is responding
 health :: ServerPart Response
 health = do
  methodM GET
  ok $ toResponse "Healthy"
 
-check_proof :: ServerPart Response
-check_proof = do
+checkProof :: ServerPart Response
+checkProof = do
   methodM POST
   rulesets <- look "rulesets"
   frees <- look "frees"
   assumptions <- look "assumptions"
   conclusion <- look "conclusion"
   syntax <- look "syntax"
-  let new_parse_funcs = if syntax == "" then [] else read syntax :: [(String, Int)]
-  let try_rulesets = maybe_parse (parse_rulesets new_parse_funcs) $ remove_ws rulesets
+  let new_parse_funcs =
+        if syntax == ""
+        then []
+        else read syntax :: [(String, Int)]
+  let try_rulesets =
+        maybeParse (parseRulesets new_parse_funcs)
+        $ removeWs rulesets
   case try_rulesets of
     Just r ->
-      let try_frees = maybe_parse (parse_rulesets new_parse_funcs) $ remove_ws frees in
+      let try_frees = maybeParse
+                      (parseRulesets new_parse_funcs) $
+                      removeWs frees in
       case try_frees of
         Just f ->
-          let try_assumps = maybe_parse (parse_assumptions new_parse_funcs) $ remove_ws assumptions in
+          let try_assumps =
+                maybeParse
+                (parseAssumptions new_parse_funcs) $
+                removeWs assumptions in
           case try_assumps of
             Just a ->
-              let try_conc = maybe_parse (parse_conclusion new_parse_funcs) $ remove_ws conclusion in
+              let try_conc =
+                    maybeParse (parseConclusion
+                                new_parse_funcs)
+                    $ removeWs conclusion in
               case try_conc of
                 Just c -> do
                   res <- iter 2 r f a c
@@ -61,48 +83,88 @@ check_proof = do
             _ -> ok $ toResponse "Failure: Error parsing assumptions"
         _ -> ok $ toResponse "Failure: Error parsing free rulesets"
     _ -> ok $ toResponse "Failure: Error parsing required rulesets"
-    
-check_assign :: ServerPart Response
-check_assign = do
+
+checkAssign :: ServerPart Response
+checkAssign = do
   methodM POST
   rulesets <- look "rulesets"
   assumptions <- look "assumptions"
   goal <- look "goal"
   syntax <- look "syntax"
-  let new_parse_funcs = if syntax == "" then [] else read syntax :: [(String, Int)]
-  let rs_parsed = parse (parse_rulesets new_parse_funcs) "" $ remove_ws rulesets
-  let as_parsed = parse (parse_assumptions new_parse_funcs) "" $ remove_ws assumptions
-  let g_parsed = parse (recurse "ground" new_parse_funcs) "" $ remove_ws goal
-  case (rs_parsed, as_parsed, g_parsed) of 
-    (Right r, Right a, Right go) -> ok $ toResponse $ "Success: Parsed assignment."
-    (p1,p2,p3) -> ok $ toResponse $ "Failure: bad parse in assumptions/rulesets."++(show p1)++(show p2)++(show p3)
+  let new_parse_funcs =
+        if syntax == ""
+        then []
+        else read syntax :: [(String, Int)]
+  let rs_parsed = parse (parseRulesets new_parse_funcs)
+                  "" $ removeWs rulesets
+  let as_parsed = parse (parseAssumptions new_parse_funcs)
+                  "" $ removeWs assumptions
+  let g_parsed = parse (recurse "ground" new_parse_funcs)
+                 "" $ removeWs goal
+  case (rs_parsed, as_parsed, g_parsed) of
+    (Right r, Right a, Right go) ->
+      ok $
+      toResponse "Success: Parsed assignment."
+    (p1,
+     p2,
+     p3) ->
+      ok $ toResponse $
+      "Failure: bad parse in assumptions/rulesets." ++
+      show p1
+      ++ show p2 ++
+      show p3
 
 
 aps a s =
-  case (unsafePerformIO $ S.timeout 500000  $ do { return $ apply_rulesets_stmts a s }) of
-    Just x -> x
-    _ -> []
-    
-baps a s =
-  case (unsafePerformIO $ S.timeout 500000 (do { return $ back_apply_rulesets_stmts a s })) of
+  case
+    unsafePerformIO $ S.timeout 500000 $
+    return $
+    applyRulesetsStmts a s
+  of
     Just x -> x
     _ -> []
 
-iter :: Int -> [Ruleset String] -> [Ruleset String] -> [Expr String] -> [Expr String] -> ServerPartT IO String
-iter 0 _ _ _ _ = do { return $ "Failed to prove." }
+baps a s =
+  case
+    unsafePerformIO $ S.timeout 500000 (
+      return $ backApplyRulesetsStmts a s
+      )
+  of
+    Just x -> x
+    _ -> []
+
+iter :: Int -> [Ruleset String] ->
+        [Ruleset String] ->
+        [Expr String] ->
+        [Expr String] -> ServerPartT IO String
+iter 0 _ _ _ _ = return "Failed to prove."
 iter depth rsets fsets assumps conc =
-  let back = (++) conc $ back_apply_rulesets_stmts conc fsets in -- Look backward once with frees
-  let expand_back = (++) back $ back_apply_rulesets_stmts back rsets in -- Generate one layer back from conclusion
-  let fwrd = (++) assumps $ apply_rulesets_stmts assumps fsets in -- Look forward with frees
-  let expand_fwrd = (++) fwrd $ apply_rulesets_stmts fwrd rsets in -- Generate one layer forward from assumptions
-  let matches = [(x,y) | x <- expand_fwrd, y <- expand_back, (PT.body x) == (PT.body y)] in
-  case matches of
-    (x:rst) -> do { return "Proved" }
-    _ -> iter (depth - 1) rsets fsets fwrd back
+  let back = (++) conc $
+             backApplyRulesetsStmts
+             conc fsets in -- Look backward once with frees
+  let expand_back = (++)
+                    back $
+                    backApplyRulesetsStmts
+                    back rsets in -- Generate one layer back from conclusion
+  let fwrd = (++)
+             assumps $
+             applyRulesetsStmts assumps fsets in -- Look forward with frees
+  let expand_fwrd = (++)
+                    fwrd $ applyRulesetsStmts fwrd rsets
+  in -- Generate one layer forward from assumptions
+   let matches = [(x , y) |
+                  x <- expand_fwrd,
+                  y <- expand_back,
+                  PT.body x == PT.body y] in
+   case matches of
+     (x : rst) -> return "Proved"
+     _ -> iter (depth - 1) rsets fsets fwrd back
 
 -- Test for empty string as input, otherwise parse
-maybe_parse :: (Parser [a]) -> String -> Maybe [a]
-maybe_parse parser str =
+maybeParse :: Parser [a]
+               -> String
+               -> Maybe [a]
+maybeParse parser str =
   if str == "" then Just [] else
     let tryit = parse parser "" str in
     case tryit of
